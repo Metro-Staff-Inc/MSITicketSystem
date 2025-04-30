@@ -1,0 +1,171 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Fade-in animation */
+.fade-in {
+  animation: fadeIn 1s ease forwards;
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(30px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Floating animation for the logo */
+@keyframes float {
+  0% {
+    transform: translateY(0);
+  }
+  50% {
+    transform: translateY(-8px);
+  }
+  100% {
+    transform: translateY(0);
+  }
+}
+
+.float-logo {
+  animation: float 3s ease-in-out infinite;
+}
+
+/* Invert image for dark mode */
+.invert-icon {
+  filter: invert(0); /* default in light mode */
+}
+
+/* Invert icon only in dark mode */
+body.dark-mode .invert-icon {
+  filter: invert(1) brightness(2);
+}
+
+/* 🌗 Full-page Dark Mode Support */
+body.dark-mode {
+  background-color: #121212 !important;
+  color: #f1f1f1 !important;
+}
+
+body.dark-mode .container,
+body.dark-mode .row,
+body.dark-mode .col,
+body.dark-mode .p-3,
+body.dark-mode .py-4,
+body.dark-mode main {
+  background-color: #121212 !important;
+  color: #f1f1f1 !important;
+}
+
+body.dark-mode .card {
+  background-color: #1e1e1e !important;
+  color: #f1f1f1 !important;
+  border-color: #2c2c2c !important;
+}
+
+body.dark-mode .form-control,
+body.dark-mode .form-select {
+  background-color: #2c2c2c !important;
+  color: #f1f1f1 !important;
+  border-color: #444 !important;
+}
+
+body.dark-mode .form-control::placeholder {
+  color: #aaa !important;
+}
+
+body.dark-mode .btn-outline-secondary {
+  color: #ddd !important;
+  border-color: #ddd !important;
+}
+
+body.dark-mode .btn-outline-secondary:hover {
+  background-color: #ddd !important;
+  color: #121212 !important;
+}
+
+body.dark-mode .modal-content {
+  background-color: #1f1f1f !important;
+  color: #f1f1f1 !important;
+}
+
+body.dark-mode .modal-header,
+body.dark-mode .modal-footer {
+  border-color: #333 !important;
+}
+
+body.dark-mode select option {
+  background-color: #2c2c2c !important;
+  color: #f1f1f1 !important;
+}
+
+/* ✅ Fix text visibility for Bootstrap text elements */
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3,
+body.dark-mode h4,
+body.dark-mode h5,
+body.dark-mode h6,
+body.dark-mode p,
+body.dark-mode .text-dark,
+body.dark-mode .navbar,
+body.dark-mode .card-title,
+body.dark-mode .card-body,
+body.dark-mode .fw-bold,
+body.dark-mode .small {
+  color: #f1f1f1 !important;
+}
+
+/* 🔆 Ensure light mode uses proper dark text color */
+body:not(.dark-mode) h1,
+body:not(.dark-mode) h2,
+body:not(.dark-mode) h3,
+body:not(.dark-mode) h4,
+body:not(.dark-mode) h5,
+body:not(.dark-mode) h6,
+body:not(.dark-mode) p,
+body:not(.dark-mode) .text-dark,
+body:not(.dark-mode) .card-title,
+body:not(.dark-mode) .card-body,
+body:not(.dark-mode) .fw-bold,
+body:not(.dark-mode) .small {
+  color: #212529 !important;
+}
+
+/* ✅ Make "No tickets found" visible in dark mode */
+body.dark-mode .no-tickets-msg {
+  color: #f1f1f1 !important;
+}
+body.dark-mode {
+  background-color: #121212;
+  color: white;
+}
+/* Fix overly dark filter styling in dark mode */
+body.dark-mode select,
+body.dark-mode .form-check-input,
+body.dark-mode .form-select {
+  background-color: #2c2c2c;
+  color: #ffffff;
+  border: 1px solid #444;
+}
+
+body.dark-mode .form-check-label {
+  color: #ffffff;
+}
+/* Lighten the filter row container in dark mode */
+body.dark-mode .row.mb-3 {
+  background-color: #1e1e1e !important;
+  padding: 1rem;
+  border-radius: 8px;
+}
+body.dark-mode .filter-row {
+  background-color: #1f1f1f !important;
+  padding: 1rem;
+  border-radius: 8px;
+  margin-bottom: 1.5rem;
+}
+
