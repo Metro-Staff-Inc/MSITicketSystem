@@ -14,19 +14,21 @@ function Login({ setIsAuthenticated }) {
 
   const handleLogin = (e) => {
     e.preventDefault();
-    console.log('🟢 Login button clicked'); // ✅ See if this prints in console
+    console.log('🟢 Login button clicked');
   
-    const role = 'user';
+    const role = 'admin'; // ← set to 'admin' for now
+  
     localStorage.setItem('isAuthenticated', 'true');
     localStorage.setItem('role', role);
     setIsAuthenticated(true);
   
     if (role === 'admin') {
-      navigate('/dashboard');
+      navigate('/admin'); // ← use /admin not /dashboard for now
     } else {
       navigate('/');
     }
   };
+  
   
   
   

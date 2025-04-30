@@ -12,6 +12,12 @@ const priorities = ["Low", "Medium", "High"];
 
 function AdminPanel() {
   const { tickets, setTickets, archivedTickets, setArchivedTickets } = useTickets();
+  const allTickets = [
+    ...(tickets.open || []),
+    ...(tickets["in progress"] || []),
+    ...(tickets.resolved || [])
+  ];
+  
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -158,7 +164,7 @@ function AdminPanel() {
             </tr>
           </thead>
           <tbody>
-            {filteredTickets.map(ticket => (
+            {allTickets.map((ticket) => (
               <tr key={ticket.id}>
                 <td>
                   <Form.Check
