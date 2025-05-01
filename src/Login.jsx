@@ -2,6 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { Form, Button, Card, Container, InputGroup } from 'react-bootstrap';
 import { Moon, Sun, Eye, EyeSlash } from 'react-bootstrap-icons';
 import { useNavigate } from 'react-router-dom';
+import axios from 'axios';
+
 
 function Login({ setIsAuthenticated }) {
   const [darkMode, setDarkMode] = useState(() => {
@@ -9,27 +11,74 @@ function Login({ setIsAuthenticated }) {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [showRegister, setShowRegister] = useState(false);
+  const [firstName, setFirstName] = useState('');
+  const [lastName, setLastName] = useState('');
+  const [registerEmail, setRegisterEmail] = useState('');
+  const [company, setCompany] = useState('');
+  const [registerPassword, setRegisterPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+
+
 
   const navigate = useNavigate();
 
-  const handleLogin = (e) => {
+  const [loginEmail, setLoginEmail] = useState('');
+  const [loginPassword, setLoginPassword] = useState('');
+  
+  const handleLogin = async (e) => {
     e.preventDefault();
-    console.log('🟢 Login button clicked');
   
-    const role = 'admin'; // ← set to 'admin' for now
+    try {
+      const res = await axios.post('http://localhost:8000/login', {
+        email: loginEmail,
+        password: loginPassword
+      });
   
-    localStorage.setItem('isAuthenticated', 'true');
-    localStorage.setItem('role', role);
-    setIsAuthenticated(true);
+      const role = res.data.role;
   
-    if (role === 'admin') {
-      navigate('/admin'); // ← use /admin not /dashboard for now
-    } else {
-      navigate('/');
+      // Store role and auth status
+      localStorage.setItem('isAuthenticated', 'true');
+      localStorage.setItem('role', role);
+      setIsAuthenticated(true);
+  
+      // Redirect based on role
+      if (role === 'admin' || role === 'manager') {
+        navigate('/admin');
+      } else {
+        navigate('/');
+      }
+  
+    } catch (err) {
+      console.error(err);
+      alert(err.response?.data?.detail || 'Login failed');
     }
   };
   
+  const handleRegister = async (e) => {
+    e.preventDefault();
   
+    if (registerPassword !== confirmPassword) {
+      alert("Passwords do not match");
+      return;
+    }
+  
+    const payload = {
+      first_name: firstName,
+      last_name: lastName,
+      email: registerEmail,
+      company: company,
+      password: registerPassword
+    };
+  
+    try {
+      const res = await axios.post('http://localhost:8000/register', payload);
+      alert(res.data.message || 'User registered successfully!');
+      setShowRegister(false);
+    } catch (err) {
+      console.error(err);
+      alert('Registration failed: ' + (err.response?.data?.detail || 'Unknown error'));
+    }
+  };
   
   
   const logos = [
@@ -114,9 +163,12 @@ function Login({ setIsAuthenticated }) {
                   <Form.Control
                     type="email"
                     placeholder="Enter email"
+                    value={loginEmail}
+                    onChange={(e) => setLoginEmail(e.target.value)}
                     required
                     className={darkMode ? 'bg-dark text-white border-secondary' : ''}
                   />
+
                 </Form.Group>
 
                 <Form.Group className="mb-3" controlId="formPassword">
@@ -124,12 +176,15 @@ function Login({ setIsAuthenticated }) {
                     Password
                   </Form.Label>
                   <InputGroup>
-                    <Form.Control
-                      type={showPassword ? 'text' : 'password'}
-                      placeholder="Password"
-                      required
-                      className={darkMode ? 'bg-dark text-white border-secondary' : ''}
-                    />
+                  <Form.Control
+                    type={showPassword ? 'text' : 'password'}
+                    placeholder="Password"
+                    value={loginPassword}
+                    onChange={(e) => setLoginPassword(e.target.value)}
+                    required
+                    className={darkMode ? 'bg-dark text-white border-secondary' : ''}
+                  />
+
                     <Button
                       variant={darkMode ? 'secondary' : 'outline-secondary'}
                       onClick={() => setShowPassword(!showPassword)}
@@ -206,22 +261,44 @@ function Login({ setIsAuthenticated }) {
               <h3 className="mb-4 text-center" style={{ color: darkMode ? 'white' : 'black', fontWeight: 'bold', opacity: 1 }}>
                 Register
               </h3>
-              <Form>
+              <Form onSubmit={handleRegister}>
                 <Form.Group className="mb-3">
                   <Form.Label style={{ color: darkMode ? 'white' : 'black' }}>First Name</Form.Label>
-                  <Form.Control type="text" placeholder="Enter first name" required />
+                  <Form.Control
+                    type="text"
+                    placeholder="Enter first name"
+                    value={firstName}
+                    onChange={(e) => setFirstName(e.target.value)}
+                    required
+                  />
                 </Form.Group>
                 <Form.Group className="mb-3">
                   <Form.Label style={{ color: darkMode ? 'white' : 'black' }}>Last Name</Form.Label>
-                  <Form.Control type="text" placeholder="Enter last name" required />
+                  <Form.Control
+                    type="text"
+                    placeholder="Enter last name"
+                    value={lastName}
+                    onChange={(e) => setLastName(e.target.value)}
+                    required
+                  />
                 </Form.Group>
                 <Form.Group className="mb-3">
                   <Form.Label style={{ color: darkMode ? 'white' : 'black' }}>Company Email</Form.Label>
-                  <Form.Control type="email" placeholder="Enter company email" required />
+                  <Form.Control
+                    type="email"
+                    placeholder="Enter company email"
+                    value={registerEmail}
+                    onChange={(e) => setRegisterEmail(e.target.value)}
+                    required
+                  />
                 </Form.Group>
                 <Form.Group className="mb-3">
                   <Form.Label style={{ color: darkMode ? 'white' : 'black' }}>Company</Form.Label>
-                  <Form.Select required>
+                  <Form.Select
+                    required
+                    value={company}
+                    onChange={(e) => setCompany(e.target.value)}
+                  >
                     <option value="">Select Company</option>
                     <option value="MSI">MSI</option>
                     <option value="BAC">BAC</option>
@@ -231,11 +308,23 @@ function Login({ setIsAuthenticated }) {
                 </Form.Group>
                 <Form.Group className="mb-3">
                   <Form.Label style={{ color: darkMode ? 'white' : 'black' }}>Password</Form.Label>
-                  <Form.Control type="password" placeholder="Password" required />
+                  <Form.Control
+                    type="password"
+                    placeholder="Password"
+                    value={registerPassword}
+                    onChange={(e) => setRegisterPassword(e.target.value)}
+                    required
+                 />
                 </Form.Group>
                 <Form.Group className="mb-4">
                   <Form.Label style={{ color: darkMode ? 'white' : 'black' }}>Confirm Password</Form.Label>
-                  <Form.Control type="password" placeholder="Confirm Password" required />
+                  <Form.Control
+                    type="password"
+                    placeholder="Confirm Password"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    required
+                  />
                 </Form.Group>
                 <div className="d-grid gap-2">
                   <Button variant="primary" type="submit">

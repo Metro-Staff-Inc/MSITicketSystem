@@ -51,10 +51,14 @@ function App() {
             isAuthenticated && role === 'user' ? <TicketBoard darkMode={darkMode} /> : <Navigate to="/login" />
           } />
           <Route path="/admin" element={
-            isAuthenticated && role === 'admin' ? <AdminPanel /> : <Navigate to="/login" />
+            isAuthenticated && (role === 'admin' || role === 'manager')
+              ? <AdminPanel role={role} />
+              : <Navigate to="/login" />
           } />
           <Route path="/dashboard" element={
-            isAuthenticated && role === 'admin' ? <AdminDashboard /> : <Navigate to="/login" />
+            isAuthenticated && role === 'admin'
+              ? <AdminDashboard />
+            : <Navigate to="/login" />
           } />
         </Routes>
       </main>
