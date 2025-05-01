@@ -104,6 +104,16 @@ function AdminPanel({ role }) {
               {darkMode ? <Sun className="me-1" /> : <Moon className="me-1" />}
               {darkMode ? "Light Mode" : "Dark Mode"}
             </Button>
+  {/* Manager-only “Back” button */}
+  {role === 'manager' && (
+  <Button
+  variant="secondary"
+onClick={() => navigate('/')}
+className="d-flex align-items-center gap-2"
+>
+← Back to My Tickets
+</Button>
+)}
 
             <Button
               variant="outline-danger"
