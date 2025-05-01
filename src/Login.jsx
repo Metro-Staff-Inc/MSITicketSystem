@@ -5,7 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 
 
-function Login({ setIsAuthenticated }) {
+function Login({ setIsAuthenticated, setRole }) {
   const [darkMode, setDarkMode] = useState(() => {
     return document.body.classList.contains('dark') || false;
   });
@@ -27,22 +27,19 @@ function Login({ setIsAuthenticated }) {
   
   const handleLogin = async (e) => {
     e.preventDefault();
-  
     try {
       const res = await axios.post('http://localhost:8000/login', {
         email: loginEmail,
         password: loginPassword
       });
   
-      const role = res.data.role;
-  
-      // Store role and auth status
-      localStorage.setItem('isAuthenticated', 'true');
-      localStorage.setItem('role', role);
+      const userRole = res.data.role;
       setIsAuthenticated(true);
+      setRole(userRole);
+      localStorage.setItem('isAuthenticated', 'true');
+      localStorage.setItem('role', userRole);
   
-      // Redirect based on role
-      if (role === 'admin' || role === 'manager') {
+      if (userRole === 'admin') {
         navigate('/admin');
       } else {
         navigate('/');
@@ -51,9 +48,13 @@ function Login({ setIsAuthenticated }) {
     } catch (err) {
       console.error(err);
       alert(err.response?.data?.detail || 'Login failed');
+      localStorage.removeItem('isAuthenticated');
+      localStorage.removeItem('role');
+      setIsAuthenticated(false);
     }
   };
   
+    
   const handleRegister = async (e) => {
     e.preventDefault();
   

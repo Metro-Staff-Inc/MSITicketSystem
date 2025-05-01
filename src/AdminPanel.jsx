@@ -10,7 +10,7 @@ const admins = ["Dan", "Zay", "Emily"];
 const statuses = ["Open", "In Progress", "Resolved"];
 const priorities = ["Low", "Medium", "High"];
 
-function AdminPanel() {
+function AdminPanel({ role }) {
   const { tickets, setTickets, archivedTickets, setArchivedTickets } = useTickets();
   const allTickets = [
     ...(tickets.open || []),
@@ -171,26 +171,29 @@ function AdminPanel() {
                     type="checkbox"
                     checked={selectedIds.includes(ticket.id)}
                     onChange={() => toggleSelect(ticket.id)}
+                    disabled={role === 'manager'}
                   />
                 </td>
                 <td>{ticket.subject}</td>
                 <td>
-                  <Form.Select
-                    value={ticket.status}
-                    onChange={(e) => handleChange(ticket.id, "status", e.target.value)}
-                    className={`text-white ${
-                      ticket.status === "Open" ? "bg-primary"
-                        : ticket.status === "In Progress" ? "bg-warning text-dark"
-                          : "bg-success"
-                    }`}
-                  >
-                    {statuses.map(s => <option key={s}>{s}</option>)}
-                  </Form.Select>
+                <Form.Select
+  value={ticket.status}
+  onChange={e => handleChange(ticket.id, "status", e.target.value)}
+  disabled={role === 'manager'}
+  className={`text-white ${
+    ticket.status === "Open" ? "bg-primary"
+      : ticket.status === "In Progress" ? "bg-warning text-dark"
+        : "bg-success"
+  }`}
+>
+  {statuses.map(s => <option key={s}>{s}</option>)}
+</Form.Select>
                 </td>
                 <td>
                   <Form.Select
                     value={ticket.priority}
                     onChange={(e) => handleChange(ticket.id, "priority", e.target.value)}
+                    disabled={role === 'manager'}
                     className={`text-white ${
                       ticket.priority === "High" ? "bg-danger"
                         : ticket.priority === "Medium" ? "bg-warning text-dark"
@@ -205,6 +208,7 @@ function AdminPanel() {
                   <Form.Select
                     value={ticket.assignedTo}
                     onChange={(e) => handleChange(ticket.id, "assignedTo", e.target.value)}
+                    disabled={role === 'manager'}
                   >
                     <option value="">Unassigned</option>
                     {admins.map(admin => (

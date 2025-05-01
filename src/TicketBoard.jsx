@@ -2,9 +2,17 @@
 import React, { useState, useEffect } from 'react';
 import { Button, Card, Modal, Form, Row, Col } from 'react-bootstrap';
 import { useTickets } from './TicketContext';
+import { useNavigate } from 'react-router-dom';
+
+
+
 
 function TicketBoard() {
+  
+  const navigate = useNavigate();
   const { tickets, setTickets, archivedTickets, setArchivedTickets } = useTickets();
+
+  const role = localStorage.getItem('role');
 
   const [darkMode, setDarkMode] = useState(() => {
     const storedMode = localStorage.getItem('darkMode');
@@ -121,19 +129,36 @@ function TicketBoard() {
           Ticketing System
         </h2>
         <div className="d-flex gap-2">
-          <Button variant="primary" onClick={() => setShowSubmitModal(true)}>＋ Submit Ticket</Button>
-          <Button variant={darkMode ? 'light' : 'dark'} onClick={() => {
-            const isDark = document.body.classList.contains('dark-mode');
-            document.body.classList.toggle('dark-mode', !isDark);
-            localStorage.setItem('darkMode', JSON.stringify(!isDark));
-            setDarkMode(!isDark);
-          }}>{darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}</Button>
-          <Button variant="outline-danger" onClick={() => {
-            localStorage.removeItem('isAuthenticated');
-            localStorage.removeItem('role');
-            window.location.href = '/login';
-          }}>🔒 Logout</Button>
-        </div>
+  <Button variant="primary" onClick={() => setShowSubmitModal(true)}>＋ Submit Ticket</Button>
+
+  {role === 'manager' && (
+  <Button
+    variant="warning"
+    onClick={() => navigate('/admin')}
+  >
+    🔍 View Admin Panel
+  </Button>
+)}
+
+
+  <Button variant={darkMode ? 'light' : 'dark'} onClick={() => {
+    const isDark = document.body.classList.contains('dark-mode');
+    document.body.classList.toggle('dark-mode', !isDark);
+    localStorage.setItem('darkMode', JSON.stringify(!isDark));
+    setDarkMode(!isDark);
+  }}>
+    {darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}
+  </Button>
+
+  <Button variant="outline-danger" onClick={() => {
+    localStorage.removeItem('isAuthenticated');
+    localStorage.removeItem('role');
+    window.location.href = '/login';
+  }}>
+    🔒 Logout
+  </Button>
+</div>
+
       </div>
       <h3 className="fw-bold mb-3">My Tickets</h3>
       <Row>

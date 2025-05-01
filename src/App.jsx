@@ -14,7 +14,15 @@ function App() {
     return localStorage.getItem('isAuthenticated') === 'true';
   });
 
-  const role = localStorage.getItem('role'); // 👈 Added this
+  const [role, setRole] = useState('');
+  useEffect(() => {
+    const savedRole = localStorage.getItem('role');
+    const savedAuth = localStorage.getItem('isAuthenticated') === 'true';
+    setRole(savedRole);
+    setIsAuthenticated(savedAuth);
+  }, []);
+  
+  
 
   useEffect(() => {
     if (darkMode) {
@@ -31,7 +39,10 @@ function App() {
 
     return () => clearTimeout(timer);
   }, []);
-
+ 
+  console.log("Role in App.js:", role);
+  console.log("IsAuthenticated in App.js:", isAuthenticated);
+  
   if (showSplash) {
     return <SplashScreen />;
   }
@@ -40,25 +51,37 @@ function App() {
     <div className="min-h-screen transition-colors duration-300">
       <main className="px-6 sm:px-10 pb-10">
         <Routes>
-          <Route path="/login" element={
-            <Login setIsAuthenticated={(value) => {
-              setIsAuthenticated(value);
-              localStorage.setItem('isAuthenticated', value);
-            }} />
-          } />
+        <Route path="/login" element={(
+  <Login
+    setIsAuthenticated={(value) => {
+      setIsAuthenticated(value);
+      localStorage.setItem('isAuthenticated', value);
+    }}
+    setRole={(value) => {
+      setRole(value);
+      localStorage.setItem('role', value);
+    }}
+  />
+)} />
+
+
+
 
           <Route path="/" element={
-            isAuthenticated && role === 'user' ? <TicketBoard darkMode={darkMode} /> : <Navigate to="/login" />
+            isAuthenticated && (role === 'user' || role === 'manager')
+              ? <TicketBoard darkMode={darkMode} />
+              : <Navigate to="/login" />
           } />
+
           <Route path="/admin" element={
             isAuthenticated && (role === 'admin' || role === 'manager')
               ? <AdminPanel role={role} />
-              : <Navigate to="/login" />
+              : <Navigate to="/" />
           } />
           <Route path="/dashboard" element={
             isAuthenticated && role === 'admin'
               ? <AdminDashboard />
-            : <Navigate to="/login" />
+              : <Navigate to="/login" />
           } />
         </Routes>
       </main>
