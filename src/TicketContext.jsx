@@ -1,20 +1,39 @@
-// TicketContext.jsx
-import React, { createContext, useContext, useState } from 'react';
+// src/TicketContext.jsx
+import React, { createContext, useContext, useState, useEffect } from 'react'
+import axios from 'axios'
 
-const TicketContext = createContext();
+const TicketContext = createContext()
 
-export const TicketProvider = ({ children }) => {
-  const [tickets, setTickets] = useState([]);
-  const [archivedTickets, setArchivedTickets] = useState([]);
+export function TicketProvider({ children }) {
+  const [tickets, setTickets] = useState({ open: [], 'in progress': [], resolved: [] })
+
+  // Load tickets once
+  useEffect(() => {
+    axios.get('http://localhost:8000/tickets')
+      .then(r => {
+        const groups = { open: [], 'in progress': [], resolved: [] }
+        r.data.forEach(t => groups[t.status.toLowerCase()]?.push(t))
+        setTickets(groups)
+      })
+      .catch(console.error)
+  }, [])
+
+  // Create a new ticket
+  function createTicket(payload) {
+    return axios.post('http://localhost:8000/tickets', payload)
+      .then(resp => {
+        setTickets(old => ({ ...old, open: [resp.data, ...old.open] }))
+        return resp.data
+      })
+  }
 
   return (
-    <TicketContext.Provider value={{
-      tickets, setTickets,
-      archivedTickets, setArchivedTickets
-    }}>
+    <TicketContext.Provider value={{ tickets, createTicket }}>
       {children}
     </TicketContext.Provider>
-  );
-};
+  )
+}
 
-export const useTickets = () => useContext(TicketContext);
+export function useTickets() {
+  return useContext(TicketContext)
+}
