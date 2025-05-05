@@ -36,6 +36,7 @@ function Login({ setIsAuthenticated, setRole }) {
       const userRole = res.data.role;
       setIsAuthenticated(true);
       setRole(userRole);
+      localStorage.setItem('userEmail', loginEmail)
       localStorage.setItem('isAuthenticated', 'true');
       localStorage.setItem('role', userRole);
   

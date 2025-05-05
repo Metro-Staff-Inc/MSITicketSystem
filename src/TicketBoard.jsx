@@ -4,6 +4,23 @@ import { Button, Card, Modal, Form, Row, Col } from 'react-bootstrap';
 import { useTickets } from './TicketContext';
 import { useNavigate } from 'react-router-dom';
 
+
+const fmtDate = iso =>
+  new Date(iso).toLocaleString(
+    'en-US',
+    {
+      month:  'short',
+      day:    '2-digit',
+      year:   'numeric',
+      hour:   '2-digit',
+      minute: '2-digit',
+      hour12: true,              // gives you “AM / PM”
+      timeZone: 'America/Chicago'
+    }
+  );
+
+
+
 function TicketBoard() {
   const navigate = useNavigate();
   const {
@@ -11,7 +28,8 @@ function TicketBoard() {
     setTickets,
     archivedTickets,
     setArchivedTickets,
-    createTicket,        // ← grab your helper from context
+    createTicket,    
+    updateTicket,    // ← grab your helper from context
   } = useTickets();
 
   const role = localStorage.getItem('role');
@@ -145,23 +163,31 @@ function TicketBoard() {
             </Button>
           )}
           <Button
-            variant={darkMode ? 'light' : 'dark'}
-            onClick={() => {
-              const isDark = document.body.classList.contains('dark-mode');
-              document.body.classList.toggle('dark-mode', !isDark);
-              localStorage.setItem('darkMode', JSON.stringify(!isDark));
-              setDarkMode(!isDark);
-            }}
-          >
-            {darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}
-          </Button>
-          <Button variant="outline-danger" onClick={() => {
-            localStorage.removeItem('isAuthenticated');
-            localStorage.removeItem('role');
-            window.location.href = '/login';
-          }}>
-            🔒 Logout
-          </Button>
+  variant={darkMode ? 'light' : 'dark'}
+  onClick={() => {
+    const isDark = document.body.classList.contains('dark-mode');
+    document.body.classList.toggle('dark-mode', !isDark);
+    localStorage.setItem('darkMode', JSON.stringify(!isDark));
+    setDarkMode(!isDark);
+  }}
+>
+  {darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}
+</Button>
+
+<Button
+  variant="outline-danger"
+  onClick={() => {
+    // 1️⃣ Clear auth flags
+    localStorage.removeItem('isAuthenticated');
+    localStorage.removeItem('role');
+    // 2️⃣ Reset splash so it plays on next /login load
+    // 3️⃣ Full reload to login screen
+    window.location.href = '/login';
+  }}
+>
+  🔒 Logout
+</Button>
+
         </div>
       </div>
 
@@ -186,8 +212,8 @@ function TicketBoard() {
                           <Card.Text className="mb-2 text-muted">{ticket.description}</Card.Text>
                           <Card.Text className="small">
                             👤 Submitted by: {ticket.submittedBy}<br />
-                            Updated: {ticket.updated}<br />
-                            Created: {ticket.created}
+                            Updated: {fmtDate(ticket.updated_at || ticket.updated)}<br />
+                            Created: {fmtDate(ticket.created_at || ticket.created)}
                           </Card.Text>
                           <div className="d-flex gap-2">
                             <Button
@@ -406,10 +432,22 @@ function TicketBoard() {
         </Modal.Header>
         <Modal.Body>
           {selectedTicket && (
-            <Form onSubmit={e => {
-              e.preventDefault();
-              setShowEditModal(false);
-            }}>
+            <Form
+            onSubmit={e => {
+              e.preventDefault();                       // stop page refresh
+          
+              // ⬇️ one‑liner that updates state (and DB, once you wire it)
+              updateTicket(selectedTicket.id, {
+                title:       editForm.title,
+                description: editForm.description,
+                updated_at:  new Date().toISOString(),
+              });
+          
+              setShowEditModal(false);                  // close the popup
+            }}
+          >
+          
+              
               <Form.Group className="mb-3">
                 <Form.Label>Title</Form.Label>
                 <Form.Control

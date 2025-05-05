@@ -1,4 +1,3 @@
-// src/AdminPanel.jsx
 import React, { useState, useEffect } from 'react';
 import { Button, Modal, Table, Form } from 'react-bootstrap';
 import { useTickets } from './TicketContext';
@@ -68,35 +67,39 @@ function AdminPanel({ role }) {
         <div className="d-flex justify-content-between align-items-center mb-4">
           <h1 className="fw-bold mb-0">Admin Panel</h1>
           <div className="d-flex gap-2">
-            {location.pathname !== '/dashboard' && (
-              <Button variant="outline-primary" onClick={() => navigate('/dashboard')}>
-                📊 Dashboard
-              </Button>
-            )}
-            {location.pathname !== '/admin' && (
-              <Button variant="outline-secondary" onClick={() => navigate('/admin')}>
-                🛠 Admin Panel
-              </Button>
-            )}
-            <Button
-              variant={darkMode ? "outline-light" : "outline-dark"}
-              onClick={() => {
-                localStorage.setItem('darkMode', JSON.stringify(!darkMode));
-                setDarkMode(m => !m);
-              }}
-            >
-              {darkMode ? <Sun /> : <Moon />} {darkMode ? "Light Mode" : "Dark Mode"}
-            </Button>
-            <Button
-              variant="outline-danger"
-              onClick={() => {
-                localStorage.removeItem('isAuthenticated');
-                navigate('/login');
-              }}
-            >
-              🔒 Logout
-            </Button>
-          </div>
+  <Button variant="primary" onClick={() => setShowSubmitModal(true)}>
+    ＋ Submit Ticket
+  </Button>
+  {role === 'manager' && (
+    <Button variant="warning" onClick={() => navigate('/admin')}>
+      🔍 View Admin Panel
+    </Button>
+  )}
+  <Button
+    variant={darkMode ? 'light' : 'dark'}
+    onClick={() => {
+      const isDark = document.body.classList.contains('dark-mode');
+      document.body.classList.toggle('dark-mode', !isDark);
+      localStorage.setItem('darkMode', JSON.stringify(!isDark));
+      setDarkMode(!isDark);
+    }}
+  >
+    {darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}
+  </Button>
+  <Button
+  variant="outline-danger"
+  onClick={() => {
+    // 1️⃣ Clear auth flags
+    localStorage.removeItem('isAuthenticated');
+    localStorage.removeItem('role');
+    // 2️⃣ Reset splash so it plays on next /login load
+    // 3️⃣ Full reload to login screen
+    window.location.href = '/login';
+  }}
+>
+  🔒 Logout
+</Button>
+</div>
         </div>
 
         {/* Filters */}
