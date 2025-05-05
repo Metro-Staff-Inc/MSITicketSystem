@@ -8,38 +8,35 @@ export function TicketProvider({ children }) {
   const [archivedTickets, setArchivedTickets] = useState([])
 
   useEffect(() => {
-    // who am I?
-    const me   = localStorage.getItem('userEmail')
-    const role = localStorage.getItem('role')
+    // 1️⃣ Who am I? (email + role from localStorage)
+    const me   = localStorage.getItem('userEmail');
+    const role = localStorage.getItem('role');
   
-    // log the email so we can be sure it’s correct
-    console.log('Current userEmail:', me)
+    // 2️⃣ Build the URL
+    const url = role === 'admin'
+      // admin sees *all* tickets
+      ? 'http://localhost:8000/tickets'
+      // others only see their own
+      : `http://localhost:8000/tickets?user_email=${encodeURIComponent(me)}`;
   
-    // build the right URL
-    const url =
-      role === 'admin'
-        ? 'http://localhost:8000/tickets'
-        : `http://localhost:8000/tickets?user_email=${encodeURIComponent(me)}`
+    console.log('Fetching tickets from:', url);
   
-    // check in console what we call
-    console.log('Fetching tickets from:', url)
-  
-    axios
-      .get(url)
+    axios.get(url)
       .then(r => {
-        console.log('Got tickets:', r.data.length)
-        const groups = { open: [], 'in progress': [], resolved: [] }
+        console.log('Got tickets:', r.data.length);
+        const groups = { open: [], 'in progress': [], resolved: [] };
         r.data.forEach(t => {
-          t.submittedBy = t.submitted_by
-          t.created     = t.created_at
-          t.updated     = t.updated_at
-          const key = t.status.toLowerCase()
-          if (groups[key]) groups[key].push(t)
-        })
-        setTickets(groups)
+          t.submittedBy = t.submitted_by;
+          t.created     = t.created_at;
+          t.updated     = t.updated_at;
+          const key = t.status.toLowerCase();
+          if (groups[key]) groups[key].push(t);
+        });
+        setTickets(groups);
       })
-      .catch(console.error)
-  }, [])
+      .catch(console.error);
+  }, []);
+  
   
   
   
