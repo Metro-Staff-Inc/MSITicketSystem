@@ -12,9 +12,10 @@ function fetchMyTickets(setTickets) {
 
 
     // only admins see everything
-    const url = (role === 'admin')
-      ? 'https://ticketing-api-z0gp.onrender.com/tickets'
-      : `https://ticketing-api-z0gp.onrender.com/tickets?user_email=${encodeURIComponent(me)}`;
+    let url = `${API_BASE}/tickets`;
+    if (role !== 'admin' && me) {
+      url += `?user_email=${encodeURIComponent(me)}`;
+    }  
 
 
   axios.get(url)
