@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 from typing import Optional, List
 import logging
 from fastapi import Form, File, UploadFile
+from email_helper import send_email
+
 
 
 # configure root logger at DEBUG (you can bump to INFO later)
