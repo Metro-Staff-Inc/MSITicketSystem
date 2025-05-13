@@ -187,6 +187,67 @@ WHERE archived = %s
 
     return [TicketOut(**dict(zip(cols, row))) for row in rows]
 
+from datetime import datetime, timezone
+
+@app.post("/tickets", response_model=TicketOut)
+def create_ticket(ticket: TicketIn):
+    """Create a new ticket and email the submitter."""
+    # 1️⃣ Insert into the database
+    now = datetime.now(timezone.utc)
+    conn = get_db_connection()
+    cur  = conn.cursor()
+    cur.execute(
+        """
+        INSERT INTO tickets
+          (title, description, submitted_by, status, priority,
+           created_at, updated_at, screenshot)
+        VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+        RETURNING id
+        """,
+        (
+            ticket.title,
+            ticket.description,
+            ticket.submitted_by,
+            ticket.status,
+            ticket.priority,
+            now,
+            now,
+            ticket.screenshot,
+        ),
+    )
+    ticket_id = cur.fetchone()[0]
+    conn.commit()
+    cur.close()
+    conn.close()
+
+    # 2️⃣ Send confirmation email
+    html = f"""
+        <h1>Ticket #{ticket_id} Submitted</h1>
+        <p>Hi there,</p>
+        <p>Your ticket &quot;<strong>{ticket.title}</strong>&quot; has been submitted successfully.</p>
+        <p>We&rsquo;ll let you know when it&rsquo;s resolved or closed.</p>
+    """
+    send_email(
+        to=ticket.submitted_by,
+        subject=f"Your Ticket #{ticket_id} Has Been Received",
+        html=html
+    )
+
+    # 3️⃣ Return the new ticket record
+    return TicketOut(
+        id=ticket_id,
+        title=ticket.title,
+        description=ticket.description,
+        submitted_by=ticket.submitted_by,
+        status=ticket.status,
+        priority=ticket.priority,
+        assigned_to=None,
+        created_at=now,
+        updated_at=now,
+        archived=False,
+        screenshot=ticket.screenshot,
+    )
+
 
 @app.post("/tasks", response_model=TaskOut)
 async def create_task(
