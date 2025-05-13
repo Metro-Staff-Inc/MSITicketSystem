@@ -1,16 +1,18 @@
 import './index.css';
+import React, { useEffect, useState } from 'react';
 import { Routes, Route, Navigate, useLocation } from 'react-router-dom';
 import TicketBoard from './TicketBoard';
 import AdminPanel from './AdminPanel';
 import AdminDashboard from './AdminDashboard';
 import Login from './Login';
 import SplashScreen from './SplashScreen';
-import React, { useEffect, useState } from 'react';
+import ChangePassword from './ChangePassword';
+
 
 function App() {
   const location = useLocation();
 
-  // Splash screen on every /login load or refresh
+  // Splash screen state for /login
   const [showSplash, setShowSplash] = useState(false);
   useEffect(() => {
     if (location.pathname === '/login') {
@@ -33,14 +35,11 @@ function App() {
   );
 
   // Role state
-  const [role, setRole] = useState('');
-  useEffect(() => {
-    const savedRole = localStorage.getItem('role');
-    setRole(savedRole);
-    setIsAuthenticated(localStorage.getItem('isAuthenticated') === 'true');
-  }, []);
+  const [role, setRole] = useState(
+    () => localStorage.getItem('role') || ''
+  );
 
-  // Show splash if on /login
+  // Show splash screen on login route
   if (showSplash && location.pathname === '/login') {
     return <SplashScreen />;
   }
@@ -49,6 +48,7 @@ function App() {
     <div className="min-h-screen transition-colors duration-300">
       <main className="px-6 sm:px-10 pb-10">
         <Routes>
+          {/* Login Route */}
           <Route
             path="/login"
             element={
@@ -60,11 +60,11 @@ function App() {
                 )
               ) : (
                 <Login
-                  setIsAuthenticated={(value) => {
+                  setIsAuthenticated={value => {
                     setIsAuthenticated(value);
                     localStorage.setItem('isAuthenticated', value);
                   }}
-                  setRole={(value) => {
+                  setRole={value => {
                     setRole(value);
                     localStorage.setItem('role', value);
                   }}
@@ -72,6 +72,8 @@ function App() {
               )
             }
           />
+
+          {/* User Ticket Board */}
           <Route
             path="/"
             element={
@@ -82,6 +84,8 @@ function App() {
               )
             }
           />
+
+          {/* Admin Panel */}
           <Route
             path="/admin"
             element={
@@ -91,16 +95,24 @@ function App() {
                 <Navigate to="/" replace />
               )
             }
+
           />
+          <Route
+            path="/change-password"
+            element={<ChangePassword />}
+         />
+
+          {/* Admin Dashboard */}
           <Route
             path="/dashboard"
             element={
               isAuthenticated && role === 'admin' ? (
-                <AdminDashboard />
+                <AdminDashboard setIsAuthenticated={setIsAuthenticated} />
               ) : (
                 <Navigate to="/login" replace />
               )
             }
+            
           />
         </Routes>
       </main>

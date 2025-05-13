@@ -23,6 +23,7 @@ const fmtDate = iso =>
 
 function TicketBoard() {
   const navigate = useNavigate();
+  const me = localStorage.getItem('userEmail') || '';
   const {
     tickets,
     setTickets,
@@ -64,26 +65,41 @@ function TicketBoard() {
     );
   };
 
+
+
   // archive moves into your archivedTickets bucket
-  const archiveTicket = (ticketToArchive) => {
-    const updatedTicket = { ...ticketToArchive, archived: true };
-
-    setTickets(prev => {
-      const updated = {};
-      for (const key of Object.keys(prev)) {
-        updated[key] = prev[key].map(ticket =>
-          ticket.id === ticketToArchive.id ? updatedTicket : ticket
-        );
-      }
-      return updated;
-    });
-
-    setArchivedTickets(prev => [...prev, updatedTicket]);
-  };
+    async function archiveTicket(ticketToArchive) {
+      console.log("archiveTicket called for", ticketToArchive.id);
+      // 1️⃣ Persist on the server
+      await updateTicket(ticketToArchive.id, {
+        archived: true,
+        status:   'Canceled'
+      });
+    
+      // 2️⃣ Build a local “archived” copy
+      const updatedTicket = {
+        ...ticketToArchive,
+        archived: true,
+        status:   'Canceled'
+      };
+    
+      // 3️⃣ Remove it from the visible lists
+      setTickets(prev => {
+        const newBuckets = {};
+        for (const key of Object.keys(prev)) {
+          newBuckets[key] = prev[key].filter(t => t.id !== ticketToArchive.id);
+        }
+        return newBuckets;
+      });
+    
+      // 4️⃣ Add it to your archivedTickets bucket
+      setArchivedTickets(prev => [updatedTicket, ...prev]);
+    }
+    
 
   // your big form state
   const [form, setForm] = useState({
-    requestedBy: '',
+    requestedBy:   me, 
     subject: '',
     additionalPeople: '',
     msiLocation: '',
@@ -265,11 +281,14 @@ function TicketBoard() {
             const payload = {
               title:        form.subject,
               description:  form.details,
-              submitted_by: form.requestedBy,
+              submitted_by: me,
+              cc_email:     form.additionalPeople || null, 
               status:       'Open',
-              priority:     'Medium',
+              priority:     'Low',
+              archived:     false,
               screenshot:   null
             };
+            
             try {
               // this POSTes + updates your `tickets.open` internally
               await createTicket(payload);
@@ -278,16 +297,13 @@ function TicketBoard() {
               console.error(err);
             }
           }}>
-            <Form.Group className="mb-3">
-              <Form.Label>Requested by</Form.Label>
-              <Form.Control type="text" name="requestedBy" onChange={handleFormChange} required />
-            </Form.Group>
+            
             <Form.Group className="mb-3">
               <Form.Label>Subject</Form.Label>
               <Form.Control type="text" name="subject" onChange={handleFormChange} required />
             </Form.Group>
             <Form.Group className="mb-3">
-              <Form.Label>Who else needs the request?</Form.Label>
+              <Form.Label>What email do you want to be cc'd?</Form.Label>
               <Form.Control type="text" name="additionalPeople" onChange={handleFormChange} />
             </Form.Group>
             <Form.Group className="mb-3">
@@ -370,7 +386,6 @@ function TicketBoard() {
               <Form.Select
                 name="customerImpacted"
                 onChange={handleFormChange}
-                required
               >
                 <option value="">Select</option>
                 <option>Yes</option>

@@ -1,8 +1,11 @@
 import React, { useEffect, useState } from 'react';
-import { Form, Button, Card, Container, InputGroup } from 'react-bootstrap';
+import { Form, Button, Card, Container, InputGroup, Alert } from 'react-bootstrap';
 import { Moon, Sun, Eye, EyeSlash } from 'react-bootstrap-icons';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { useTickets } from './TicketContext';
+
+const API_BASE = "https://ticketing-api-z0gp.onrender.com";
 
 
 function Login({ setIsAuthenticated, setRole }) {
@@ -17,6 +20,8 @@ function Login({ setIsAuthenticated, setRole }) {
   const [company, setCompany] = useState('');
   const [registerPassword, setRegisterPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
+  const { reloadTickets } = useTickets();
+
 
 
 
@@ -24,11 +29,15 @@ function Login({ setIsAuthenticated, setRole }) {
 
   const [loginEmail, setLoginEmail] = useState('');
   const [loginPassword, setLoginPassword] = useState('');
+  const [loginError, setLoginError] = useState('');
+
   
   const handleLogin = async (e) => {
     e.preventDefault();
+    setLoginError('');
+
     try {
-      const res = await axios.post('http://localhost:8000/login', {
+      const res = await axios.post(`${API_BASE}/login`, {
         email: loginEmail,
         password: loginPassword
       });
@@ -36,19 +45,24 @@ function Login({ setIsAuthenticated, setRole }) {
       const userRole = res.data.role;
       setIsAuthenticated(true);
       setRole(userRole);
-      localStorage.setItem('userEmail', loginEmail)
-      localStorage.setItem('isAuthenticated', 'true');
-      localStorage.setItem('role', userRole);
-  
-      if (userRole === 'admin') {
-        navigate('/admin');
-      } else {
-        navigate('/');
-      }
+      localStorage.setItem('userEmail', loginEmail);
+localStorage.setItem('isAuthenticated', 'true');
+localStorage.setItem('role', userRole);
+setIsAuthenticated(true);
+setRole(userRole);
+
+reloadTickets();    // ← fetch tickets now
+
+if (userRole === 'admin') {
+  navigate('/admin');
+} else {
+  navigate('/');
+}
+
   
     } catch (err) {
       console.error(err);
-      alert(err.response?.data?.detail || 'Login failed');
+      setLoginError(err.response?.data?.detail || 'Login failed');
       localStorage.removeItem('isAuthenticated');
       localStorage.removeItem('role');
       setIsAuthenticated(false);
@@ -73,7 +87,7 @@ function Login({ setIsAuthenticated, setRole }) {
     };
   
     try {
-      const res = await axios.post('http://localhost:8000/register', payload);
+      const res = await axios.post(`${API_BASE}/register`, payload);
       alert(res.data.message || 'User registered successfully!');
       setShowRegister(false);
     } catch (err) {
@@ -157,6 +171,11 @@ function Login({ setIsAuthenticated, setRole }) {
             }}
           >
             <Card.Body>
+            {loginError && (
+    <Alert variant="danger" className="mb-3">
+      {loginError}
+    </Alert>
+  )}
               <Form onSubmit={handleLogin}>
                 <Form.Group className="mb-3" controlId="formEmail">
                   <Form.Label style={{ color: darkMode ? 'white' : 'black' }}>

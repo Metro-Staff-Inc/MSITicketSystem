@@ -1,139 +1,276 @@
 import React, { useState, useEffect } from 'react';
-import { Button, Modal, Table, Form } from 'react-bootstrap';
+import { Form, Table, Modal, Button, Row, Col, Badge } from 'react-bootstrap';
 import { useTickets } from './TicketContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Moon, Sun, EyeFill } from 'react-bootstrap-icons';
+import axios from 'axios';
 
-const admins = ["Dan", "Zay", "Emily"];
-const statuses = ["Open", "In Progress", "Resolved"];
+const API_BASE = "https://ticketing-api-z0gp.onrender.com";
+
+
+const statuses   = ["Open", "In Progress", "Resolved", "Closed"];
 const priorities = ["Low", "Medium", "High"];
 
-function AdminPanel({ role }) {
-  const { tickets, setTickets, archivedTickets, setArchivedTickets } = useTickets();
-  const navigate = useNavigate();
-  const location = useLocation();
+export default function AdminPanel({ role }) {
+  const {
+    tickets,
+    setTickets,
+    archivedTickets,
+    setArchivedTickets,
+    updateTicket,
+  } = useTickets();
+
+  const [allTickets,      setAllTickets]      = useState([]);
+  const [adminUsers,      setAdminUsers]      = useState([]);
+  const [showModal,       setShowModal]       = useState(false);
+  const [selectedTicket,  setSelectedTicket]  = useState(null);
+  const [showResponseModal, setShowResponseModal] = useState(false);
+  const [responseText, setResponseText] = useState("");
+
+  
 
   // Filter state
   const [filterStatus,   setFilterStatus]   = useState("");
   const [filterPriority, setFilterPriority] = useState("");
   const [filterUser,     setFilterUser]     = useState("");
 
-  // Combine all into one list
-  const allTickets = [
-    ...(tickets.open        || []),
-    ...(tickets["in progress"] || []),
-    ...(tickets.resolved    || [])
-  ];
+  const navigate = useNavigate();
+  const location = useLocation();
 
-  // Apply filters
-  const filteredTickets = allTickets.filter(t =>
-    (!filterStatus   || t.status      === filterStatus)   &&
-    (!filterPriority || t.priority    === filterPriority) &&
-    (!filterUser     || t.submittedBy === filterUser)
+  const [showArchived, setShowArchived] = useState(false);
+  const [showCompleted, setShowCompleted] = useState(false);
+  const [completedTickets, setCompletedTickets] = useState([]);
+  
+
+  // Fetch tickets (active vs archived)
+  useEffect(() => {
+    if (role === 'admin' || role === 'manager') {
+      const url = `${API_BASE}/tickets?archived=${showArchived}`;
+      axios.get(url)
+      .then(resp => {
+        const mapped = resp.data.map(t => ({
+          ...t,
+          assignedTo: t.assigned_to   // ← map the API field
+        }));
+        setAllTickets(mapped);
+      })
+      
+        .catch(console.error);
+    }
+  }, [role, showArchived]);
+
+  async function archiveTicket(ticket) {
+    // mark archived on the server
+    await updateTicket(ticket.id, { status: "Closed", archived: true });
+  
+    // update local list
+    setAllTickets(prev =>
+      prev.map(x =>
+        x.id === ticket.id
+          ? { ...x, status: "Closed", archived: true }
+          : x
+      )
+    );
+  
+    // move into your completedTickets array (if you’re still using it)
+    setCompletedTickets(prev => {
+      const without = prev.filter(t => t.id !== ticket.id);
+      return [{ ...ticket, status: "Closed", archived: true }, ...without];
+    });
+  }
+  
+
+  async function resolveTicket(ticket) {
+    await updateTicket(ticket.id, { status: "Resolved", response: responseText });
+  
+    // ✅ Update in place
+    setAllTickets(prev =>
+      prev.map(x => x.id === ticket.id ? { ...x, status: "Resolved", response: responseText } : x)
+    );
+  
+    // ✅ Move the ticket to completedTickets instantly
+    setCompletedTickets(prev => {
+      const without = prev.filter(t => t.id !== ticket.id);
+      return [{ ...ticket, status: "Resolved", response: responseText }, ...without];
+    });
+  
+    setResponseText(""); // Clear input
+  }
+
+
+
+  // Fetch admin users
+  useEffect(() => {
+     axios.get(`${API_BASE}/users?role=admin`)
+         .then(r => setAdminUsers(r.data))
+         .catch(console.error);
+  }, []);
+
+  const handleStatusChange = (t, newStatus) => {
+    // 🔄 If completed view and reopened, go back to main view
+    if (showCompleted && newStatus === "Open") {
+      setShowCompleted(false);
+    }
+  
+    updateTicket(t.id, { status: newStatus });
+  
+    // 1️⃣ Update the main ticket list
+    setAllTickets(prev =>
+      prev.map(x => x.id === t.id ? { ...x, status: newStatus } : x)
+    );
+  
+    // 2️⃣ If the ticket is "Resolved" or "Closed," add it to completedTickets
+    // Otherwise, remove it from completedTickets
+    setCompletedTickets(prev =>
+      (newStatus === "Resolved" || newStatus === "Closed")
+        ? [...prev.filter(x => x.id !== t.id), { ...t, status: newStatus }]
+        : prev.filter(x => x.id !== t.id)
+    );
+  };
+  
+  
+  
+  const handlePriorityChange = (t, newPriority) => {
+    updateTicket(t.id, { priority: newPriority });
+    setAllTickets(prev =>
+      prev.map(x => x.id === t.id ? { ...x, priority: newPriority } : x)
+    );
+  };
+  const handleAssignChange = (t, newAssignee) => {
+    updateTicket(t.id, { assigned_to: newAssignee });
+    setAllTickets(prev =>
+      prev.map(x => x.id === t.id ? { ...x, assignedTo: newAssignee } : x)
+    );
+  };
+
+  console.log(
+    '🔍 showArchived:', showArchived,
+    'tickets:', allTickets.map(t => ({
+      id: t.id,
+      status: t.status,
+      archived: t.archived
+    }))
   );
+  
 
-  // Dark mode toggle
-  const [darkMode, setDarkMode] = useState(() => localStorage.getItem('darkMode') === 'true');
+  const filteredTickets = allTickets.filter(t => {
+    // 1️⃣ If “Show Archived” is active, only show archived tickets
+    if (showArchived) {
+      return t.archived === true;
+    }
+    // 2️⃣ Else if “Show Completed” is active, only show resolved/closed
+    if (showCompleted) {
+      return t.status === "Resolved" || t.status === "Closed";
+    }
+    // 3️⃣ Otherwise (default), only show open or in-progress
+    return t.status === "Open" || t.status === "In Progress";
+  });
+  
+  
+  
+
+  const uniqueUsers = [...new Set(allTickets.map(t => t.submitted_by))];
+
+  // Dark mode
+  const [darkMode, setDarkMode] = useState(
+    () => localStorage.getItem('darkMode') === 'true'
+  );
   useEffect(() => {
     document.body.classList.toggle('dark-mode', darkMode);
   }, [darkMode]);
 
-  // Selection, modal state, etc.
+  // Selection checkboxes
   const [selectedIds, setSelectedIds] = useState([]);
-  const [showArchived, setShowArchived] = useState(false);
-  const [selectedTicket, setSelectedTicket] = useState(null);
-  const [showModal, setShowModal] = useState(false);
-
   const toggleSelect = id =>
-    setSelectedIds(ids => ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]);
-
-  const handleChange = (id, field, value) => {
-    setTickets(old => {
-      const updated = { ...old };
-      for (let key of Object.keys(updated)) {
-        updated[key] = updated[key].map(t =>
-          t.id === id ? { ...t, [field]: value } : t
-        );
-      }
-      return updated;
-    });
-  };
-
-  const uniqueUsers = [...new Set(allTickets.map(t => t.submittedBy))];
+    setSelectedIds(ids =>
+      ids.includes(id) ? ids.filter(x => x !== id) : [...ids, id]
+    );
 
   return (
     <div className={`${darkMode ? 'bg-dark text-white' : 'bg-light text-dark'} min-vh-100`}>
       <div className="container-fluid px-4 py-5">
+        {/* header */}
         <div className="d-flex justify-content-between align-items-center mb-4">
           <h1 className="fw-bold mb-0">Admin Panel</h1>
           <div className="d-flex gap-2">
-  <Button variant="primary" onClick={() => setShowSubmitModal(true)}>
-    ＋ Submit Ticket
-  </Button>
-  {role === 'manager' && (
-    <Button variant="warning" onClick={() => navigate('/admin')}>
-      🔍 View Admin Panel
-    </Button>
-  )}
-  <Button
-    variant={darkMode ? 'light' : 'dark'}
-    onClick={() => {
-      const isDark = document.body.classList.contains('dark-mode');
-      document.body.classList.toggle('dark-mode', !isDark);
-      localStorage.setItem('darkMode', JSON.stringify(!isDark));
-      setDarkMode(!isDark);
-    }}
-  >
-    {darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}
-  </Button>
-  <Button
-  variant="outline-danger"
-  onClick={() => {
-    // 1️⃣ Clear auth flags
-    localStorage.removeItem('isAuthenticated');
-    localStorage.removeItem('role');
-    // 2️⃣ Reset splash so it plays on next /login load
-    // 3️⃣ Full reload to login screen
-    window.location.href = '/login';
-  }}
->
-  🔒 Logout
-</Button>
-</div>
+            {role === 'admin' && location.pathname !== '/dashboard' && (
+              <Button variant="outline-primary" onClick={() => navigate('/dashboard')}>
+                📊 Dashboard
+              </Button>
+            )}
+            {role === 'manager' && (
+              <Button variant="warning" onClick={() => navigate('/')}>
+                🔙 Back to My Tickets
+              </Button>
+            )}
+            <Button
+              variant={darkMode ? 'light' : 'dark'}
+              onClick={() => {
+                const next = !darkMode;
+                setDarkMode(next);
+                localStorage.setItem('darkMode', JSON.stringify(next));
+              }}
+            >
+              {darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}
+            </Button>
+            <Button
+              variant="outline-danger"
+              onClick={() => {
+                localStorage.removeItem('isAuthenticated');
+                localStorage.removeItem('role');
+                window.location.href = '/login';
+              }}
+            >
+              🔒 Logout
+            </Button>
+          </div>
         </div>
 
-        {/* Filters */}
-        <div className="row mb-3">
-          <div className="col-md-3">
+        {/* filters */}
+        <Row className="mb-4 gx-3">
+          <Col md={3}>
             <Form.Select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
               <option value="">All Statuses</option>
-              {statuses.map(s => <option key={s}>{s}</option>)}
+              {statuses.map(s => <option key={s} value={s}>{s}</option>)}
             </Form.Select>
-          </div>
-          <div className="col-md-3">
+          </Col>
+          <Col md={3}>
             <Form.Select value={filterPriority} onChange={e => setFilterPriority(e.target.value)}>
               <option value="">All Priorities</option>
-              {priorities.map(p => <option key={p}>{p}</option>)}
+              {priorities.map(p => <option key={p} value={p}>{p}</option>)}
             </Form.Select>
-          </div>
-          <div className="col-md-3">
-            <Form.Select value={filterUser} onChange={e => setFilterUser(e.target.value)}>
-              <option value="">All Users</option>
-              {uniqueUsers.map(u => <option key={u}>{u}</option>)}
-            </Form.Select>
-          </div>
-          <div className="col-md-3 d-flex align-items-center">
-            <Form.Check
-              type="switch"
-              id="archived-switch"
-              label="Show Archived"
-              checked={showArchived}
-              onChange={() => setShowArchived(a => !a)}
+          </Col>
+          <Col md={3}>
+            <Form.Control
+              type="text"
+              list="user-list"
+              value={filterUser}
+              onChange={e => setFilterUser(e.target.value)}
+              placeholder="Search users..."
             />
-          </div>
-        </div>
+            <datalist id="user-list">
+              {uniqueUsers.map(u => <option key={u} value={u} />)}
+            </datalist>
+          </Col>
+          
+          <Col md={3} className="d-flex justify-content-end gap-2">
+  <Button
+    onClick={() => setShowCompleted(v => !v)}
+    variant={showCompleted ? 'secondary' : 'outline-secondary'}
+  >
+    {showCompleted ? 'Hide Completed' : 'Show Completed'}
+  </Button>
+  <Button
+    onClick={() => setShowArchived(v => !v)}
+    variant={showArchived ? 'secondary' : 'outline-secondary'}
+  >
+    {showArchived ? 'Hide Archived' : 'Show Archived'}
+  </Button>
+</Col>
 
-        {/* Table */}
+        </Row>
+
+        {/* table */}
         <Table striped bordered hover responsive variant={darkMode ? "dark" : "light"}>
           <thead>
             <tr>
@@ -149,7 +286,7 @@ function AdminPanel({ role }) {
             </tr>
           </thead>
           <tbody>
-            {(showArchived ? archivedTickets : filteredTickets).map(t => (
+            {filteredTickets.map(t => (
               <tr key={t.id}>
                 <td>
                   <Form.Check
@@ -161,28 +298,31 @@ function AdminPanel({ role }) {
                 </td>
                 <td>{t.title}</td>
                 <td>{t.description}</td>
-                {/* Status with color */}
                 <td>
+                  {t.archived ? (
+                    <Badge bg="secondary">Canceled</Badge>
+                  ) : (
                   <Form.Select
                     value={t.status}
-                    onChange={e => handleChange(t.id, 'status', e.target.value)}
+                    onChange={e => handleStatusChange(t, e.target.value)}
                     disabled={role === 'manager'}
                     className={`text-white ${
                       t.status === 'Open'
-                        ? 'bg-primary'
+                        ? 'bg-primary border-3 border-info shadow-sm'
                         : t.status === 'In Progress'
                           ? 'bg-warning text-dark'
                           : 'bg-success'
                     }`}
+                    
                   >
-                    {statuses.map(s => <option key={s}>{s}</option>)}
+                    {statuses.map(s => <option key={s} value={s}>{s}</option>)}
                   </Form.Select>
+                 )} 
                 </td>
-                {/* Priority with color */}
                 <td>
                   <Form.Select
                     value={t.priority}
-                    onChange={e => handleChange(t.id, 'priority', e.target.value)}
+                    onChange={e => handlePriorityChange(t, e.target.value)}
                     disabled={role === 'manager'}
                     className={`text-white ${
                       t.priority === 'High'
@@ -192,18 +332,22 @@ function AdminPanel({ role }) {
                           : 'bg-secondary'
                     }`}
                   >
-                    {priorities.map(p => <option key={p}>{p}</option>)}
+                    {priorities.map(p => <option key={p} value={p}>{p}</option>)}
                   </Form.Select>
                 </td>
-                <td>{t.submittedBy}</td>
+                <td>{t.submitted_by}</td>
                 <td>
                   <Form.Select
                     value={t.assignedTo || ''}
-                    onChange={e => handleChange(t.id, 'assignedTo', e.target.value)}
+                    onChange={e => handleAssignChange(t, e.target.value)}
                     disabled={role === 'manager'}
                   >
                     <option value="">Unassigned</option>
-                    {admins.map(a => <option key={a}>{a}</option>)}
+                    {adminUsers.map(u => (
+                      <option key={u.email} value={u.email}>
+                        {u.first_name} {u.last_name}
+                      </option>
+                    ))}
                   </Form.Select>
                 </td>
                 <td>{new Date(t.created_at).toLocaleString()}</td>
@@ -215,13 +359,25 @@ function AdminPanel({ role }) {
                   >
                     <EyeFill />
                   </Button>
+                  <Button
+  size="sm"
+  variant="outline-secondary"
+  onClick={() => {
+    setSelectedTicket(t);
+    setShowResponseModal(true);
+  }}
+  className="ms-2"
+>
+  💬 Respond
+</Button>
+
                 </td>
               </tr>
             ))}
           </tbody>
         </Table>
 
-        {/* View Modal */}
+        {/* view modal */}
         <Modal show={showModal} onHide={() => setShowModal(false)}>
           <Modal.Header closeButton>
             <Modal.Title>View Ticket</Modal.Title>
@@ -233,7 +389,7 @@ function AdminPanel({ role }) {
                 <p><strong>Description:</strong> {selectedTicket.description}</p>
                 <p><strong>Status:</strong> {selectedTicket.status}</p>
                 <p><strong>Priority:</strong> {selectedTicket.priority}</p>
-                <p><strong>Submitted By:</strong> {selectedTicket.submittedBy}</p>
+                <p><strong>Submitted By:</strong> {selectedTicket.submitted_by}</p>
                 <p><strong>Assigned To:</strong> {selectedTicket.assignedTo || 'Unassigned'}</p>
                 <p><strong>Created At:</strong> {new Date(selectedTicket.created_at).toLocaleString()}</p>
                 {selectedTicket.screenshot && (
@@ -249,9 +405,57 @@ function AdminPanel({ role }) {
             <Button variant="secondary" onClick={() => setShowModal(false)}>Close</Button>
           </Modal.Footer>
         </Modal>
+
+{/* Response Modal */}
+<Modal
+  show={showResponseModal}
+  onHide={() => setShowResponseModal(false)}
+  centered
+>
+  <Modal.Header closeButton>
+    <Modal.Title>Respond to Ticket</Modal.Title>
+  </Modal.Header>
+  <Modal.Body>
+    <Form.Group>
+      <Form.Label>Your Response</Form.Label>
+      <Form.Control
+        as="textarea"
+        rows={4}
+        value={responseText}
+        onChange={e => setResponseText(e.target.value)}
+      />
+    </Form.Group>
+  </Modal.Body>
+ <Modal.Footer>
+ <Button
+  variant="success"
+  onClick={async () => {
+    await resolveTicket(selectedTicket);
+    setShowResponseModal(false);
+  }}
+>
+  Resolve Ticket
+</Button>
+
+  <Button
+  variant="danger"
+  onClick={async () => {
+    console.log("Close clicked:", selectedTicket?.id);
+    await archiveTicket(selectedTicket);
+    setShowResponseModal(false);
+  }}
+>
+  Close Ticket
+</Button>
+
+  <Button variant="secondary" className="ms-2" onClick={() => setShowResponseModal(false)}>
+    Cancel
+  </Button>
+</Modal.Footer>
+
+</Modal>
+
       </div>
     </div>
   );
 }
-
-export default AdminPanel;
