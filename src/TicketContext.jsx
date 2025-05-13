@@ -40,13 +40,14 @@ export function TicketProvider({ children }) {
 
   useEffect(() => {
     // 1️⃣ Who am I? (email + role from localStorage)
-    const me   = localStorage.getItem('userEmail');
+    const me   = localStorage.getItem('userEmail') || '';
     const role = localStorage.getItem('role');
   
     // 2️⃣ Build the URL
-    const url = role === 'admin'
-      ? 'https://ticketing-api-z0gp.onrender.com/tickets'
-      : `https://ticketing-api-z0gp.onrender.com/tickets?user_email=${encodeURIComponent(me)}`;
+    let url = `${API_BASE}/tickets`;
+    if (role !== 'admin' && me) {
+      url += `?user_email=${encodeURIComponent(me)}`;
+    }
 
 
   
