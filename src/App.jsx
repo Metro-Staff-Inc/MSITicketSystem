@@ -5,22 +5,13 @@ import TicketBoard from './TicketBoard';
 import AdminPanel from './AdminPanel';
 import AdminDashboard from './AdminDashboard';
 import Login from './Login';
-import SplashScreen from './SplashScreen';
 import ChangePassword from './ChangePassword';
 
 
 function App() {
   const location = useLocation();
 
-  // Splash screen state for /login
-  const [showSplash, setShowSplash] = useState(false);
-  useEffect(() => {
-    if (location.pathname === '/login') {
-      setShowSplash(true);
-      const timer = setTimeout(() => setShowSplash(false), 5000);
-      return () => clearTimeout(timer);
-    }
-  }, [location.pathname]);
+ 
 
   // Dark mode state
   const [darkMode, setDarkMode] = useState(false);
@@ -39,10 +30,6 @@ function App() {
     () => localStorage.getItem('role') || ''
   );
 
-  // Show splash screen on login route
-  if (showSplash && location.pathname === '/login') {
-    return <SplashScreen />;
-  }
 
   return (
     <div className="min-h-screen transition-colors duration-300">
@@ -50,28 +37,15 @@ function App() {
         <Routes>
           {/* Login Route */}
           <Route
-            path="/login"
-            element={
-              isAuthenticated ? (
-                role === 'admin' ? (
-                  <Navigate to="/admin" replace />
-                ) : (
-                  <Navigate to="/" replace />
-                )
-              ) : (
-                <Login
-                  setIsAuthenticated={value => {
-                    setIsAuthenticated(value);
-                    localStorage.setItem('isAuthenticated', value);
-                  }}
-                  setRole={value => {
-                    setRole(value);
-                    localStorage.setItem('role', value);
-                  }}
-                />
-              )
-            }
-          />
+  path="/login"
+  element={
+    <Login
+      setIsAuthenticated={setIsAuthenticated}
+      setRole={setRole}
+    />
+  }
+/>
+
 
           {/* User Ticket Board */}
           <Route

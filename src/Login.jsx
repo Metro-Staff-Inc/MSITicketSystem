@@ -8,6 +8,7 @@ import { useTickets } from './TicketContext';
 const API_BASE = "https://ticketing-api-z0gp.onrender.com";
 
 
+
 function Login({ setIsAuthenticated, setRole }) {
   const [darkMode, setDarkMode] = useState(() => {
     return document.body.classList.contains('dark') || false;
@@ -33,43 +34,45 @@ function Login({ setIsAuthenticated, setRole }) {
 
   
   const handleLogin = async (e) => {
-    e.preventDefault();
-    setLoginError('');
+  e.preventDefault();
+  console.log("🔑 handleLogin fired with", { email: loginEmail });
+  setLoginError('');
 
-    try {
-      const res = await axios.post(`${API_BASE}/login`, {
-        email: loginEmail,
-        password: loginPassword
-      });
+  try {
+    const res = await axios.post(`${API_BASE}/login`, {
+      email: loginEmail,
+      password: loginPassword
+    });
+    console.log("✅ login response:", res.data);
+
+    const userRole = res.data.role.toLowerCase();  // "Admin" → "admin"
+    setIsAuthenticated(true);
+    setRole(userRole);
+    localStorage.setItem('userEmail', loginEmail);
+    localStorage.setItem('isAuthenticated', 'true');
+    localStorage.setItem('role', userRole);
+
+    // fetch tickets now
+    reloadTickets();
+
+    // ← add this block:
+    const redirectTo = userRole === 'admin' ? '/admin' : '/';
+    console.log("🚀 redirecting to", redirectTo);
+    navigate(redirectTo, { replace: true });
+
+  } catch (err) {
+    console.error("❌ login failed:", err.response?.data || err);
+    setLoginError(err.response?.data?.detail || 'Login failed');
+    localStorage.removeItem('isAuthenticated');
+    localStorage.removeItem('role');
+    setIsAuthenticated(false);
+  }
+};
+
   
-      const userRole = res.data.role;
-      setIsAuthenticated(true);
-      setRole(userRole);
-      localStorage.setItem('userEmail', loginEmail);
-localStorage.setItem('isAuthenticated', 'true');
-localStorage.setItem('role', userRole);
-setIsAuthenticated(true);
-setRole(userRole);
+   
 
-reloadTickets();    // ← fetch tickets now
 
-if (userRole === 'admin') {
-  navigate('/admin');
-} else {
-  navigate('/');
-}
-
-  
-    } catch (err) {
-      console.error(err);
-      setLoginError(err.response?.data?.detail || 'Login failed');
-      localStorage.removeItem('isAuthenticated');
-      localStorage.removeItem('role');
-      setIsAuthenticated(false);
-    }
-  };
-  
-    
   const handleRegister = async (e) => {
     e.preventDefault();
   
