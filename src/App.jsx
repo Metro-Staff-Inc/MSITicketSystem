@@ -6,7 +6,7 @@ import AdminPanel from './AdminPanel';
 import AdminDashboard from './AdminDashboard';
 import Login from './Login';
 import ChangePassword from './ChangePassword';
-
+import WelcomeSplash from './WelcomeSplash';
 
 function App() {
   const location = useLocation();
@@ -34,62 +34,83 @@ function App() {
   return (
     <div className="min-h-screen transition-colors duration-300">
       <main className="px-6 sm:px-10 pb-10">
-        <Routes>
-          {/* Login Route */}
-          <Route
-  path="/login"
-  element={
-    <Login
-      setIsAuthenticated={setIsAuthenticated}
-      setRole={setRole}
+  <Routes>
+    {/* Login */}
+    <Route
+      path="/login"
+      element={
+        <Login
+          setIsAuthenticated={setIsAuthenticated}
+          setRole={setRole}
+        />
+      }
     />
-  }
-/>
 
+    {/* Welcome Splash, shown immediately after login */}
+    <Route
+      path="/welcome"
+      element={
+        isAuthenticated ? (
+          <WelcomeSplash />
+        ) : (
+          <Navigate to="/login" replace />
+        )
+      }
+    />
 
-          {/* User Ticket Board */}
-          <Route
-            path="/"
-            element={
-              isAuthenticated && (role === 'user' || role === 'manager') ? (
-                <TicketBoard darkMode={darkMode} />
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
-          />
+    {/* User Ticket Board */}
+    <Route
+      path="/"
+      element={
+        isAuthenticated && (role === 'user' || role === 'manager') ? (
+          <TicketBoard darkMode={darkMode} />
+        ) : (
+          <Navigate to="/login" replace />
+        )
+      }
+    />
 
-          {/* Admin Panel */}
-          <Route
-            path="/admin"
-            element={
-              isAuthenticated && (role === 'admin' || role === 'manager') ? (
-                <AdminPanel role={role} />
-              ) : (
-                <Navigate to="/" replace />
-              )
-            }
+    {/* Admin Panel */}
+    <Route
+      path="/admin"
+      element={
+        isAuthenticated && (role === 'admin' || role === 'manager') ? (
+          <AdminPanel role={role} />
+        ) : (
+          <Navigate to="/" replace />
+        )
+      }
+    />
 
-          />
-          <Route
-            path="/change-password"
-            element={<ChangePassword />}
-         />
+    {/* Change Password */}
+    <Route path="/change-password" element={<ChangePassword />} />
 
-          {/* Admin Dashboard */}
-          <Route
-            path="/dashboard"
-            element={
-              isAuthenticated && role === 'admin' ? (
-                <AdminDashboard setIsAuthenticated={setIsAuthenticated} />
-              ) : (
-                <Navigate to="/login" replace />
-              )
-            }
-            
-          />
-        </Routes>
-      </main>
+    {/* Admin Dashboard */}
+    <Route
+      path="/dashboard"
+      element={
+        isAuthenticated && role === 'admin' ? (
+          <AdminDashboard setIsAuthenticated={setIsAuthenticated} />
+        ) : (
+          <Navigate to="/login" replace />
+        )
+      }
+    />
+
+    {/* Catch‐all: redirect based on auth */}
+    <Route
+      path="*"
+      element={
+        isAuthenticated ? (
+          <Navigate to={role === 'admin' ? '/admin' : '/'} replace />
+        ) : (
+          <Navigate to="/login" replace />
+        )
+      }
+    />
+  </Routes>
+</main>
+
     </div>
   );
 }

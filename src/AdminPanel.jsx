@@ -45,19 +45,42 @@ export default function AdminPanel({ role }) {
   // Fetch tickets (active vs archived)
   useEffect(() => {
     if (role === 'admin' || role === 'manager') {
-      const url = `${API_BASE}/tickets?archived=${showArchived}`;
-      axios.get(url)
-      .then(resp => {
-        const mapped = resp.data.map(t => ({
-          ...t,
-          assignedTo: t.assigned_to   // ← map the API field
-        }));
-        setAllTickets(mapped);
-      })
-      
+      axios
+        .get(`${API_BASE}/tickets?archived=${showArchived}`)
+        .then(resp => {
+          const mapped = resp.data.map(t => ({
+            ...t,
+            assignedTo: t.assigned_to
+          }));
+          setAllTickets(mapped);
+        })
         .catch(console.error);
     }
   }, [role, showArchived]);
+
+  // ② fetch admins (runs once on mount—but we’ll also call it after corp-register)
+  const fetchAdmins = () => {
+    axios
+      .get(`${API_BASE}/users?role=Admin`)
+      .then(r => setAdminUsers(r.data))
+      .catch(console.error);
+  };
+
+  useEffect(fetchAdmins, []);
+
+  async function handleCorpRegister() {
+    await axios.post(`${API_BASE}/register`, {
+      first_name: corpFirstName,
+      last_name:  corpLastName,
+      email:      corpEmail,
+      company:    corpCompany,
+      role:       corpRole,
+      password:   corpPassword,
+    });
+    // re-load the admin list
+    fetchAdmins();
+    // … clear form & close modal …
+  }
 
   async function archiveTicket(ticket) {
     // mark archived on the server
@@ -101,10 +124,11 @@ export default function AdminPanel({ role }) {
 
   // Fetch admin users
   useEffect(() => {
-     axios.get(`${API_BASE}/users?role=admin`)
-         .then(r => setAdminUsers(r.data))
-         .catch(console.error);
-  }, []);
+  axios
+    .get(`${API_BASE}/users?role=Admin`)
+    .then(r => setAdminUsers(r.data))
+    .catch(console.error);
+}, []);
 
   const handleStatusChange = (t, newStatus) => {
     // 🔄 If completed view and reopened, go back to main view

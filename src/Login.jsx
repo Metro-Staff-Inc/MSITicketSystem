@@ -39,26 +39,32 @@ function Login({ setIsAuthenticated, setRole }) {
   setLoginError('');
 
   try {
+    console.log("🔄 Logging in with email:", loginEmail);
     const res = await axios.post(`${API_BASE}/login`, {
       email: loginEmail,
       password: loginPassword
     });
-    console.log("✅ login response:", res.data);
+    
 
-    const userRole = res.data.role.toLowerCase();  // "Admin" → "admin"
+    // ← pull role + first_name, normalize role, and save firstName
+    const { role, first_name } = res.data;
+    const userRole = role.toLowerCase();
+    localStorage.setItem('firstName', first_name);
+
+    // ← your existing auth setup
     setIsAuthenticated(true);
     setRole(userRole);
     localStorage.setItem('userEmail', loginEmail);
     localStorage.setItem('isAuthenticated', 'true');
     localStorage.setItem('role', userRole);
 
-    // fetch tickets now
+    // ← fetch tickets once
     reloadTickets();
 
-    // ← add this block:
-    const redirectTo = userRole === 'admin' ? '/admin' : '/';
-    console.log("🚀 redirecting to", redirectTo);
-    navigate(redirectTo, { replace: true });
+    // send everyone to the welcome splash
+    console.log("🚀 redirecting to welcome");
+    navigate('/welcome', { replace: true });
+    
 
   } catch (err) {
     console.error("❌ login failed:", err.response?.data || err);
@@ -68,9 +74,6 @@ function Login({ setIsAuthenticated, setRole }) {
     setIsAuthenticated(false);
   }
 };
-
-  
-   
 
 
   const handleRegister = async (e) => {
