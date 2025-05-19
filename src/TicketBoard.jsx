@@ -48,9 +48,9 @@ function TicketBoard() {
   useEffect(() => {
   // load active tickets
   axios
-    .get(`/tickets?user_email=${encodeURIComponent(userEmail)}&archived=false`)
-    .then(res => setTickets(res.data))
-    .catch(console.error);
+    //.get(`/tickets?user_email=${encodeURIComponent(userEmail)}&archived=false`)
+    //.then(res => setTickets(res.data))
+    //.catch(console.error);
 
   // load archived tickets
   axios
