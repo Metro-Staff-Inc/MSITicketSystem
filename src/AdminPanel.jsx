@@ -304,6 +304,7 @@ export default function AdminPanel({ role }) {
               <th>Status</th>
               <th>Priority</th>
               <th>Submitted By</th>
+              <th>Location</th>
               <th>Assigned To</th>
               <th>Created At</th>
               <th>Actions</th>
@@ -360,6 +361,7 @@ export default function AdminPanel({ role }) {
                   </Form.Select>
                 </td>
                 <td>{t.submitted_by}</td>
+                <td>{t.msi_location || t.on_site_location || '—'}</td>
                 <td>
                   <Form.Select
                     value={t.assignedTo || ''}
