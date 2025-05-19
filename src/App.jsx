@@ -7,6 +7,8 @@ import AdminDashboard from './AdminDashboard';
 import Login from './Login';
 import ChangePassword from './ChangePassword';
 import WelcomeSplash from './WelcomeSplash';
+import TicketDetail from './TicketDetail';
+
 
 function App() {
   const location = useLocation();
@@ -96,6 +98,11 @@ function App() {
         )
       }
     />
+    
+<Route
+  path="/tickets/:ticketId"
+  element={<TicketDetail />}
+/>
 
     {/* Catch‐all: redirect based on auth */}
     <Route

@@ -131,9 +131,10 @@ function Login({ setIsAuthenticated, setRole }) {
         className="top-logos"
         style={{
           display: 'flex',
+          flexWrap: 'wrap',
           justifyContent: 'center',
           alignItems: 'center',
-          gap: '40px',
+          gap: '20px',
           paddingTop: '200px',
           paddingBottom: '20px',
         }}
@@ -166,7 +167,7 @@ function Login({ setIsAuthenticated, setRole }) {
 
       {/* Centered Login Form */}
       <div style={{ flexGrow: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        <Container style={{ maxWidth: '400px' }}>
+        <Container style={{ maxWidth: '400px', width: '90%' }}>
           <Card
             style={{
               border: 'none',
@@ -390,22 +391,31 @@ function Login({ setIsAuthenticated, setRole }) {
 
       {/* Responsive Style */}
       <style>
-        {`
-          @media (max-width: 600px) {
-            .top-logos img {
-              height: 50px !important;
-              max-width: 80px !important;
-            }
-            .top-logos span {
-              font-size: 18px !important;
-            }
-          }
-          @keyframes slideUp {
-            from { transform: translateY(100%); opacity: 0; }
-            to { transform: translateY(0); opacity: 1; }
-          }
-        `}
-      </style>
+  {`
+    @media (max-width: 600px) {
+      .top-logos img {
+        height: 50px !important;
+        max-width: 80px !important;
+      }
+      .top-logos span {
+        font-size: 18px !important;
+      }
+
+      /* NEW mobile tweaks */
+      .top-logos {
+        padding-top: 100px !important;
+      }
+      .container > .card {
+        margin-top: 1rem !important;
+      }
+    }
+    @keyframes slideUp {
+      from { transform: translateY(100%); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+  `}
+</style>
+
     </div>
   );
 }

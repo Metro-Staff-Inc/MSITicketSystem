@@ -1,8 +1,13 @@
 // src/TicketBoard.jsx
 import React, { useState, useEffect } from 'react';
-import { Button, Card, Modal, Form, Row, Col } from 'react-bootstrap';
+import { Button, Card, Modal, Form, Row, Col, Toast, ToastContainer } from 'react-bootstrap';
 import { useTickets } from './TicketContext';
-import { useNavigate } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
+import axios from 'axios';
+
+// 👉 Tell axios to send requests to your backend API instead of the React dev server
+axios.defaults.baseURL = 'https://ticketing-api-z0gp.onrender.com';
+
 
 
 const fmtDate = iso =>
@@ -22,8 +27,13 @@ const fmtDate = iso =>
 
 
 function TicketBoard() {
-  const navigate = useNavigate();
-  const me = localStorage.getItem('userEmail') || '';
+  const navigate    = useNavigate();
+  const me          = localStorage.getItem("userEmail") || "";
+  const { search }  = useLocation();
+  const params      = new URLSearchParams(search);
+  const userEmail   = params.get("user_email") || me;
+
+  
   const {
     tickets,
     setTickets,
@@ -34,6 +44,20 @@ function TicketBoard() {
   } = useTickets();
 
   const role = localStorage.getItem('role');
+
+  useEffect(() => {
+  // load active tickets
+  axios
+    .get(`/tickets?user_email=${encodeURIComponent(userEmail)}&archived=false`)
+    .then(res => setTickets(res.data))
+    .catch(console.error);
+
+  // load archived tickets
+  axios
+    .get(`/tickets?user_email=${encodeURIComponent(userEmail)}&archived=true`)
+    .then(res => setArchivedTickets(res.data))
+    .catch(console.error);
+}, [userEmail, setTickets, setArchivedTickets]);
 
   const [darkMode, setDarkMode] = useState(() => {
     const storedMode = localStorage.getItem('darkMode');
@@ -55,15 +79,9 @@ function TicketBoard() {
   const [showViewModal, setShowViewModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editForm, setEditForm] = useState({ title: '', description: '' });
+  const [showToast, setShowToast]       = useState(false);
+  const [toastMessage, setToastMessage] = useState('');
 
-  // cancel simply marks archived in place
-  const cancelTicket = (ticketId) => {
-    setTickets(prev =>
-      prev.map(ticket =>
-        ticket.id === ticketId ? { ...ticket, archived: true } : ticket
-      )
-    );
-  };
 
 
 
@@ -156,56 +174,95 @@ function TicketBoard() {
     setShowEditModal(true);
   };
 
+
+  const cancelTicket = async (ticketId) => {
+    console.log("➡️ cancelTicket called for", ticketId);
+  try {
+    await axios.post(`/tickets/${ticketId}/cancel`);
+    
+    setTickets(prev => {
+      const newBuckets = {};
+      for (const key of Object.keys(prev)) {
+        newBuckets[key] = prev[key].filter(t => t.id !== ticketId);
+      }
+      return newBuckets;
+    });
+    // 2) Add it to archivedTickets
+    setArchivedTickets(prev => [
+      { id: ticketId, archived: true, status: 'Canceled' },
+      ...prev
+    ]);
+    setToastMessage('✅ Ticket canceled and email sent!');
+    setShowToast(true);
+  } catch (err) {
+    console.error(err);
+    setToastMessage('❌ Failed to cancel ticket.');
+    setShowToast(true);
+  }
+};
+
   return (
-    <div className="container py-4">
-      <div className="d-flex justify-content-between align-items-center mb-4">
-        <h2 className="fw-bold d-flex align-items-center">
-          <img
-            src="https://cdn-icons-png.flaticon.com/512/1828/1828970.png"
-            alt="Ticket Icon"
-            width="32"
-            height="32"
-            className="me-2 float-logo invert-icon"
-          />
-          Ticketing System
-        </h2>
-        <div className="d-flex gap-2">
-          <Button variant="primary" onClick={() => setShowSubmitModal(true)}>
-            ＋ Submit Ticket
+  <div className="container py-4">
+    {/* Toast notifications */}
+    <ToastContainer position="top-end" className="p-3">
+      <Toast
+        onClose={() => setShowToast(false)}
+        show={showToast}
+        delay={3000}
+        autohide
+        bg={toastMessage.startsWith('✅') ? 'success' : 'danger'}
+      >
+        <Toast.Body className="text-white">
+          {toastMessage}
+        </Toast.Body>
+      </Toast>
+    </ToastContainer>
+
+    {/* Header */}
+    <div className="d-flex justify-content-between align-items-center mb-4">
+      <h2 className="fw-bold d-flex align-items-center">
+        <img
+          src="https://cdn-icons-png.flaticon.com/512/1828/1828970.png"
+          alt="Ticket Icon"
+          width="32"
+          height="32"
+          className="me-2 float-logo invert-icon"
+        />
+        Ticketing System
+      </h2>
+      <div className="d-flex gap-2">
+        <Button variant="primary" onClick={() => setShowSubmitModal(true)}>
+          ＋ Submit Ticket
+        </Button>
+        {role === 'manager' && (
+          <Button variant="warning" onClick={() => navigate('/admin')}>
+            🔍 View Admin Panel
           </Button>
-          {role === 'manager' && (
-            <Button variant="warning" onClick={() => navigate('/admin')}>
-              🔍 View Admin Panel
-            </Button>
-          )}
-          <Button
-  variant={darkMode ? 'light' : 'dark'}
-  onClick={() => {
-    const isDark = document.body.classList.contains('dark-mode');
-    document.body.classList.toggle('dark-mode', !isDark);
-    localStorage.setItem('darkMode', JSON.stringify(!isDark));
-    setDarkMode(!isDark);
-  }}
->
-  {darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}
-</Button>
-
-<Button
-  variant="outline-danger"
-  onClick={() => {
-    // 1️⃣ Clear auth flags
-    localStorage.removeItem('isAuthenticated');
-    localStorage.removeItem('role');
-    // 2️⃣ Reset splash so it plays on next /login load
-    // 3️⃣ Full reload to login screen
-    window.location.href = '/login';
-  }}
->
-  🔒 Logout
-</Button>
-
-        </div>
+        )}
+        <Button
+          variant={darkMode ? 'light' : 'dark'}
+          onClick={() => {
+            const isDark = document.body.classList.contains('dark-mode');
+            document.body.classList.toggle('dark-mode', !isDark);
+            localStorage.setItem('darkMode', JSON.stringify(!isDark));
+            setDarkMode(!isDark);
+          }}
+        >
+          {darkMode ? '☀️ Light Mode' : '🌙 Dark Mode'}
+        </Button>
+        <Button
+          variant="outline-danger"
+          onClick={() => {
+            localStorage.removeItem('isAuthenticated');
+            localStorage.removeItem('role');
+            window.location.href = '/login';
+          }}
+        >
+          🔒 Logout
+        </Button>
       </div>
+    </div>
+
 
       <h3 className="fw-bold mb-3">My Tickets</h3>
       <Row>
@@ -246,13 +303,15 @@ function TicketBoard() {
                             >
                               ✏ Edit
                             </Button>
+                            {(role === 'user' || role === 'manager') && (
                             <Button
                               variant="outline-danger"
                               size="sm"
-                              onClick={() => archiveTicket(ticket)}
+                              onClick={() => cancelTicket(ticket.id)}
                             >
                               🗑 Cancel
                             </Button>
+                            )}
                           </div>
                         </Card.Body>
                       </Card>
@@ -268,6 +327,7 @@ function TicketBoard() {
       <Modal
         show={showSubmitModal}
         onHide={() => setShowSubmitModal(false)}
+        fullscreen="sm-down"
         centered
         size="lg"
       >
@@ -413,22 +473,30 @@ function TicketBoard() {
       <Modal
         show={showViewModal}
         onHide={() => setShowViewModal(false)}
+        fullscreen="sm-down"
         centered
       >
         <Modal.Header closeButton>
           <Modal.Title>View Ticket</Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          {selectedTicket && (
-            <>
-              <p><strong>Title:</strong> {selectedTicket.title}</p>
-              <p><strong>Description:</strong> {selectedTicket.description}</p>
-              <p><strong>Submitted By:</strong> {selectedTicket.submittedBy}</p>
-              <p><strong>Created:</strong> {selectedTicket.created}</p>
-              <p><strong>Updated:</strong> {selectedTicket.updated}</p>
-            </>
-          )}
-        </Modal.Body>
+  {selectedTicket && (
+    <>
+      <p><strong>Title:</strong> {selectedTicket.title}</p>
+      <p><strong>Description:</strong> {selectedTicket.description}</p>
+      <p><strong>Submitted By:</strong> {selectedTicket.submittedBy}</p>
+      <p>
+        <strong>Created:</strong>{' '}
+        {fmtDate(selectedTicket.created_at ?? selectedTicket.created)}
+      </p>
+      <p>
+        <strong>Updated:</strong>{' '}
+        {fmtDate(selectedTicket.updated_at ?? selectedTicket.updated)}
+      </p>
+    </>
+  )}
+</Modal.Body>
+
         <Modal.Footer>
           <Button variant="secondary" onClick={() => setShowViewModal(false)}>
             Close
@@ -440,6 +508,7 @@ function TicketBoard() {
       <Modal
         show={showEditModal}
         onHide={() => setShowEditModal(false)}
+        fullscreen="sm-down"
         centered
       >
         <Modal.Header closeButton>

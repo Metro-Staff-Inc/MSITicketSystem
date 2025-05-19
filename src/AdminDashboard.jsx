@@ -180,10 +180,10 @@ function AdminDashboard({ setIsAuthenticated }) {
 
       {/* Chart & List */}
       <Row>
-        <Col md={6} className="mb-4">
+        <Col xs={12} md={6} className="mb-4">
           <StatusPie data={pieData} options={pieOptions} />
         </Col>
-        <Col md={6} className="mb-4">
+        <Col xs={12} md={6} className="mb-4">
           <ToDoList
             /* …all your existing ToDoList props… */
           />

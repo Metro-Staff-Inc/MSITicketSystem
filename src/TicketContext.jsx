@@ -22,7 +22,7 @@ function fetchMyTickets(setTickets) {
     .then(r => {
       const groups = { open: [], 'in progress': [], resolved: [] };
       r.data.forEach(t => {
-        t.submittedBy = t.submitted_by;
+        t.submittedBy = t.submitted_by_name || t.submitted_by;
         t.assignedTo    = t.assigned_to;
         t.created     = t.created_at;
         t.updated     = t.updated_at;
@@ -59,7 +59,7 @@ export function TicketProvider({ children }) {
         console.log('Got tickets:', r.data.length);
         const groups = { open: [], 'in progress': [], resolved: [] };
         r.data.forEach(t => {
-          t.submittedBy = t.submitted_by;
+          t.submittedBy = t.submitted_by_name || t.submitted_by;
           t.assignedTo = t.assigned_to;
           t.created     = t.created_at;
           t.updated     = t.updated_at;
@@ -80,7 +80,7 @@ export function TicketProvider({ children }) {
       .post('https://ticketing-api-z0gp.onrender.com/tickets', payload)
       .then(resp => {
         const t = resp.data
-        t.submittedBy = t.submitted_by
+        t.submittedBy = t.submitted_by_name || t.submitted_by;
         t.created     = t.created_at
         t.updated     = t.updated_at
         setTickets(old => ({ ...old, open: [t, ...(old.open || [])] }))
@@ -94,7 +94,7 @@ export function TicketProvider({ children }) {
       .patch(`https://ticketing-api-z0gp.onrender.com/tickets/${id}`, changes)
       .then(resp => {
         const t = resp.data
-        t.submittedBy = t.submitted_by
+        t.submittedBy = t.submitted_by_name || t.submitted_by;
         t.created     = t.created_at
         t.updated     = t.updated_at
   

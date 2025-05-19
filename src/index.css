@@ -169,3 +169,20 @@ body.dark-mode .filter-row {
   margin-bottom: 1.5rem;
 }
 
+/* Mobile tweaks: stack buttons, tighten padding */
+@media (max-width: 576px) {
+  /* Make header buttons full width and stack */
+  .d-flex.gap-2 {
+    flex-direction: column !important;
+  }
+  .d-flex.gap-2 > button {
+    width: 100%;
+    margin-bottom: 0.5rem;
+  }
+
+  /* Reduce side padding on small screens */
+  .container.py-4 {
+    padding-left: 1rem !important;
+    padding-right: 1rem !important;
+  }
+}
