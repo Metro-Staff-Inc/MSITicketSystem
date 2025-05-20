@@ -33,6 +33,8 @@ export default function AdminPanel({ role }) {
   const [filterStatus,   setFilterStatus]   = useState("");
   const [filterPriority, setFilterPriority] = useState("");
   const [filterUser,     setFilterUser]     = useState("");
+  const [filterLocation, setFilterLocation] = useState("");
+
 
   const navigate = useNavigate();
   const location = useLocation();
@@ -178,6 +180,10 @@ export default function AdminPanel({ role }) {
   
 
   const filteredTickets = allTickets.filter(t => {
+      // 🔍 Location filter: if one is entered but this ticket’s location doesn’t match, skip
+  if (filterLocation && t.location !== filterLocation) {
+    return false;
+  }
     // 1️⃣ If “Show Archived” is active, only show archived tickets
     if (showArchived) {
       return t.archived === true;
@@ -194,6 +200,17 @@ export default function AdminPanel({ role }) {
   
 
   const uniqueUsers = [...new Set(allTickets.map(t => t.submitted_by))];
+
+  // now build your list of locations
+   const uniqueLocations = [
+   ...new Set(
+     allTickets
+       .map(t => t.location)      // pull out the `location` field
+       .filter(loc => loc && loc.trim() !== "")  // drop empty/null
+   )
+ ];
+
+ 
 
   // Dark mode
   const [darkMode, setDarkMode] = useState(
@@ -251,48 +268,62 @@ export default function AdminPanel({ role }) {
         </div>
 
         {/* filters */}
-        <Row className="mb-4 gx-3">
-          <Col md={3}>
-            <Form.Select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
-              <option value="">All Statuses</option>
-              {statuses.map(s => <option key={s} value={s}>{s}</option>)}
-            </Form.Select>
-          </Col>
-          <Col md={3}>
-            <Form.Select value={filterPriority} onChange={e => setFilterPriority(e.target.value)}>
-              <option value="">All Priorities</option>
-              {priorities.map(p => <option key={p} value={p}>{p}</option>)}
-            </Form.Select>
-          </Col>
-          <Col md={3}>
-            <Form.Control
-              type="text"
-              list="user-list"
-              value={filterUser}
-              onChange={e => setFilterUser(e.target.value)}
-              placeholder="Search users..."
-            />
-            <datalist id="user-list">
-              {uniqueUsers.map(u => <option key={u} value={u} />)}
-            </datalist>
-          </Col>
-          
-          <Col md={3} className="d-flex justify-content-end gap-2">
-  <Button
-    onClick={() => setShowCompleted(v => !v)}
-    variant={showCompleted ? 'secondary' : 'outline-secondary'}
-  >
-    {showCompleted ? 'Hide Completed' : 'Show Completed'}
-  </Button>
-  <Button
-    onClick={() => setShowArchived(v => !v)}
-    variant={showArchived ? 'secondary' : 'outline-secondary'}
-  >
-    {showArchived ? 'Hide Archived' : 'Show Archived'}
-  </Button>
-</Col>
+<Row className="mb-4 gx-3">
+  <Col md={2}>
+    <Form.Select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
+      <option value="">All Statuses</option>
+      {statuses.map(s => <option key={s} value={s}>{s}</option>)}
+    </Form.Select>
+  </Col>
+  <Col md={2}>
+    <Form.Select value={filterPriority} onChange={e => setFilterPriority(e.target.value)}>
+      <option value="">All Priorities</option>
+      {priorities.map(p => <option key={p} value={p}>{p}</option>)}
+    </Form.Select>
+  </Col>
+  <Col md={2}>
+    <Form.Control
+      type="text"
+      list="user-list"
+      value={filterUser}
+      onChange={e => setFilterUser(e.target.value)}
+      placeholder="Search users..."
+    />
+    <datalist id="user-list">
+      {uniqueUsers.map(u => <option key={u} value={u} />)}
+    </datalist>
+  </Col>
+  {/* Location filter */}
+  <Col md={2}>
+    <Form.Control
+      type="text"
+      list="location-list"
+      value={filterLocation}
+      onChange={e => setFilterLocation(e.target.value)}
+      placeholder="Filter by location…"
+    />
+    <datalist id="location-list">
+      {uniqueLocations.map(loc => (
+        <option key={loc} value={loc} />
+      ))}
+    </datalist>
+  </Col>
+  <Col md={4} className="d-flex justify-content-end gap-2">
+    <Button
+      onClick={() => setShowCompleted(v => !v)}
+      variant={showCompleted ? 'secondary' : 'outline-secondary'}
+    >
+      {showCompleted ? 'Hide Completed' : 'Show Completed'}
+    </Button>
+    <Button
+      onClick={() => setShowArchived(v => !v)}
+      variant={showArchived ? 'secondary' : 'outline-secondary'}
+    >
+      {showArchived ? 'Hide Archived' : 'Show Archived'}
+    </Button>
+  </Col>
+</Row>
 
-        </Row>
 
         {/* table */}
         <Table striped bordered hover responsive variant={darkMode ? "dark" : "light"}>
@@ -361,7 +392,7 @@ export default function AdminPanel({ role }) {
                   </Form.Select>
                 </td>
                 <td>{t.submitted_by}</td>
-                <td>{t.msi_location || t.on_site_location || '—'}</td>
+                <td>{t.location || '—'}</td>
                 <td>
                   <Form.Select
                     value={t.assignedTo || ''}

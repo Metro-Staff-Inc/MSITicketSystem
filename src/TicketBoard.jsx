@@ -44,6 +44,14 @@ function TicketBoard() {
   } = useTickets();
 
   const role = localStorage.getItem('role');
+  const company = localStorage.getItem("company") || "";
+
+  // List of companies who get the simplified form
+const specialCompanies = ['BAC', 'Confirmifiy', 'Arwalsh'];
+
+// Boolean flag for whether we need the simplified fields
+const isSpecial = specialCompanies.includes(company);
+
 
   useEffect(() => {
   // load active tickets
@@ -148,6 +156,11 @@ function TicketBoard() {
   const techCategories = ['Application help', 'Computer Login', 'General Computer issues', 'Office 365', 'Printing', 'VPN Connecting', 'Time Clock'];
   const requestCategories = ['WebTrax', 'TempWorks', 'New Computer', 'New Phone'];
   const msiLocations = ['Aurora', 'Bartlett', 'Bolingbrook', 'Burbank', 'Corporate', 'Elgin', 'Elk Grove', 'Palatine', 'Las Vegas', 'Melrose Park', 'On-Site', 'West Chicago'];
+  const companyHelpTypes = {
+  BAC:        ['BAC Issue A', 'BAC Issue B', 'BAC Request X'],
+  Confirmifiy:['Confirm Option 1', 'Confirm Option 2', 'Confirm Request Y'],
+  Arwalsh:    ['Arwalsh Help 1', 'Arwalsh Help 2', 'Arwalsh Request Z'],
+};
 
   const handleFormChange = (e) => {
     const { name, value, files } = e.target;
@@ -324,185 +337,280 @@ function TicketBoard() {
       </Row>
 
       {/* Submit Ticket Modal */}
-      <Modal
-        show={showSubmitModal}
-        onHide={() => setShowSubmitModal(false)}
-        fullscreen="sm-down"
-        centered
-        size="lg"
-      >
-        <Modal.Header closeButton>
-          <Modal.Title>Submit Ticket</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Form onSubmit={async e => {
-            e.preventDefault();
-            // build the same payload you had
-            const payload = {
-              title:        form.subject,
-              description:  form.details,
-              submitted_by: me,
-              cc_email:     form.additionalPeople || null, 
-              status:       'Open',
-              priority:     'Low',
-              archived:     false,
-              screenshot:   null
-            };
-            
-            try {
-              // this POSTes + updates your `tickets.open` internally
-              await createTicket(payload);
-              setShowSubmitModal(false);
-            } catch (err) {
-              console.error(err);
-            }
-          }}>
-            
+<Modal
+  show={showSubmitModal}
+  onHide={() => setShowSubmitModal(false)}
+  fullscreen="sm-down"
+  centered
+  size="lg"
+>
+  <Modal.Header closeButton>
+    <Modal.Title>Submit Ticket</Modal.Title>
+  </Modal.Header>
+
+  <Modal.Body>
+    <Form
+      onSubmit={async e => {
+        e.preventDefault();
+        const payload = {
+          title:        form.subject,
+          description:  form.details,
+          submitted_by: me,
+          cc_email:     form.additionalPeople || null,
+          status:       'Open',
+          priority:     'Low',
+          archived:     false,
+          screenshot:   form.screenshot || null
+        };
+        try {
+          await createTicket(payload);
+          setShowSubmitModal(false);
+        } catch (err) {
+          console.error(err);
+        }
+      }}
+    >
+      {isSpecial ? (
+        // ── Simplified form for BAC, Confirmifiy, Arwalsh ──
+        <>
+          {/* Subject */}
+          <Form.Group className="mb-3">
+            <Form.Label>Subject</Form.Label>
+            <Form.Control
+              type="text"
+              name="subject"
+              value={form.subject}
+              onChange={handleFormChange}
+              required
+            />
+          </Form.Group>
+
+          {/* CC Emails */}
+          <Form.Group className="mb-3">
+            <Form.Label>What email do you want to be cc'd?</Form.Label>
+            <Form.Control
+              type="text"
+              name="additionalPeople"
+              value={form.additionalPeople}
+              onChange={handleFormChange}
+            />
+          </Form.Group>
+
+          {/* Location (fixed to Corporate) */}
+          <Form.Group className="mb-3">
+            <Form.Label>Location</Form.Label>
+            <Form.Control
+              type="text"
+              name="msiLocation"
+              value="Corporate"
+              readOnly
+            />
+          </Form.Group>
+
+          {/* Help Type */}
+          <Form.Group className="mb-3">
+            <Form.Label>What Do You Need Help With?</Form.Label>
+            <Form.Select
+              name="helpType"
+              value={form.helpType}
+              onChange={handleFormChange}
+              required
+            >
+              <option value="">Select…</option>
+              <option>Tech Issues</option>
+              <option>Request</option>
+            </Form.Select>
+          </Form.Group>
+
+          {/* Details */}
+          <Form.Group className="mb-3">
+            <Form.Label>Please describe what help or request is needed in detail</Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={3}
+              name="details"
+              value={form.details}
+              onChange={handleFormChange}
+              required
+            />
+          </Form.Group>
+
+          {/* Customer Impacted */}
+          <Form.Group className="mb-3">
+            <Form.Label>Is a customer directly impacted?</Form.Label>
+            <Form.Select
+              name="customerImpacted"
+              value={form.customerImpacted}
+              onChange={handleFormChange}
+              required
+            >
+              <option value="">Select…</option>
+              <option>Yes</option>
+              <option>No</option>
+            </Form.Select>
+          </Form.Group>
+
+          {/* Screenshot */}
+          <Form.Group className="mb-3">
+            <Form.Label>Upload Screenshot</Form.Label>
+            <Form.Control
+              type="file"
+              name="screenshot"
+              onChange={handleFormChange}
+              accept="image/*"
+            />
+          </Form.Group>
+        </>
+      ) : (
+        // ── Full MSI form for everyone else ──
+        <>
+          {/* Subject */}
+          <Form.Group className="mb-3">
+            <Form.Label>Subject</Form.Label>
+            <Form.Control
+              type="text"
+              name="subject"
+              value={form.subject}
+              onChange={handleFormChange}
+              required
+            />
+          </Form.Group>
+
+          {/* CC Emails */}
+          <Form.Group className="mb-3">
+            <Form.Label>What email do you want to be cc'd?</Form.Label>
+            <Form.Control
+              type="text"
+              name="additionalPeople"
+              value={form.additionalPeople}
+              onChange={handleFormChange}
+            />
+          </Form.Group>
+
+          {/* MSI Location */}
+          <Form.Group className="mb-3">
+            <Form.Label>MSI Location</Form.Label>
+            <Form.Select
+              name="msiLocation"
+              value={form.msiLocation}
+              onChange={handleFormChange}
+              required
+            >
+              <option value="">Select…</option>
+              {msiLocations.map(loc => (
+                <option key={loc}>{loc}</option>
+              ))}
+            </Form.Select>
+          </Form.Group>
+
+          {/* On‐site Location */}
+          <Form.Group className="mb-3">
+            <Form.Label>On-site Location</Form.Label>
+            <Form.Control
+              type="text"
+              name="onSiteLocation"
+              value={form.onSiteLocation}
+              onChange={handleFormChange}
+            />
+          </Form.Group>
+
+          {/* Help Type */}
+          <Form.Group className="mb-3">
+            <Form.Label>What Do You Need Help With?</Form.Label>
+            <Form.Select
+              name="helpType"
+              value={form.helpType}
+              onChange={handleFormChange}
+              required
+            >
+              <option value="">Select…</option>
+              <option>Tech Issue</option>
+              <option>Request</option>
+              <option>Onboarding</option>
+              <option>Offboarding</option>
+            </Form.Select>
+          </Form.Group>
+
+          {/* Category */}
+          {['Tech Issue', 'Request'].includes(form.helpType) && (
             <Form.Group className="mb-3">
-              <Form.Label>Subject</Form.Label>
-              <Form.Control type="text" name="subject" onChange={handleFormChange} required />
-            </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>What email do you want to be cc'd?</Form.Label>
-              <Form.Control type="text" name="additionalPeople" onChange={handleFormChange} />
-            </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>MSI Location</Form.Label>
-              <Form.Select name="msiLocation" onChange={handleFormChange} required>
-                <option value="">Select...</option>
-                {msiLocations.map(loc => <option key={loc}>{loc}</option>)}
-              </Form.Select>
-            </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>On-site Location</Form.Label>
-              <Form.Control type="text" name="onSiteLocation" onChange={handleFormChange} />
-            </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>What Do You Need Help With?</Form.Label>
+              <Form.Label>Category</Form.Label>
               <Form.Select
-                name="helpType"
-                value={form.helpType}
+                name="category"
+                value={form.category}
                 onChange={handleFormChange}
                 required
               >
-                <option value="">Select...</option>
-                <option>Tech Issue</option>
-                <option>Request</option>
-                <option>Onboarding</option>
-                <option>Offboarding</option>
+                <option value="">Select…</option>
+                {(form.helpType === 'Tech Issue' ? techCategories : requestCategories).map(cat => (
+                  <option key={cat}>{cat}</option>
+                ))}
               </Form.Select>
             </Form.Group>
+          )}
 
-            {['Tech Issue', 'Request'].includes(form.helpType) && (
-              <Form.Group className="mb-3">
-                <Form.Label>Category</Form.Label>
-                <Form.Select name="category" onChange={handleFormChange} required>
-                  <option value="">Select...</option>
-                  {(form.helpType === 'Tech Issue' ? techCategories : requestCategories).map(cat => (
-                    <option key={cat}>{cat}</option>
-                  ))}
-                </Form.Select>
-              </Form.Group>
-            )}
+          {/* Onboarding fields */}
+          {form.helpType === 'Onboarding' && (
+            <>
+              {/* (your existing onboarding fields here) */}
+            </>
+          )}
 
-            {form.helpType === 'Onboarding' && (
-              <>
-                <Form.Group className="mb-3">
-                  <Form.Label>First Name</Form.Label>
-                  <Form.Control
-                    onChange={e => handleNestedChange('onboarding','firstName',e.target.value)}
-                  />
-                </Form.Group>
-                {/* …rest of your onboarding fields exactly as before… */}
-              </>
-            )}
+          {/* Offboarding fields */}
+          {form.helpType === 'Offboarding' && (
+            <>
+              {/* (your existing offboarding fields here) */}
+            </>
+          )}
 
-            {form.helpType === 'Offboarding' && (
-              <>
-                <Form.Group className="mb-3">
-                  <Form.Label>First Name</Form.Label>
-                  <Form.Control
-                    onChange={e => handleNestedChange('offboarding','firstName',e.target.value)}
-                  />
-                </Form.Group>
-                {/* …rest of your offboarding fields exactly as before… */}
-              </>
-            )}
+          {/* Details */}
+          <Form.Group className="mb-3">
+            <Form.Label>Please describe what help or request is needed in detail</Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={3}
+              name="details"
+              value={form.details}
+              onChange={handleFormChange}
+              required
+            />
+          </Form.Group>
 
-            <Form.Group className="mb-3">
-              <Form.Label>
-                Please describe what help or request is needed in detail
-              </Form.Label>
-              <Form.Control
-                as="textarea"
-                rows={3}
-                name="details"
-                onChange={handleFormChange}
-                required
-              />
-            </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Is a customer directly impacted?</Form.Label>
-              <Form.Select
-                name="customerImpacted"
-                onChange={handleFormChange}
-              >
-                <option value="">Select</option>
-                <option>Yes</option>
-                <option>No</option>
-              </Form.Select>
-            </Form.Group>
-            <Form.Group className="mb-3">
-              <Form.Label>Upload Screenshot</Form.Label>
-              <Form.Control
-                type="file"
-                name="screenshot"
-                onChange={handleFormChange}
-                accept="image/*"
-              />
-            </Form.Group>
+          {/* Customer Impacted */}
+          <Form.Group className="mb-3">
+            <Form.Label>Is a customer directly impacted?</Form.Label>
+            <Form.Select
+              name="customerImpacted"
+              value={form.customerImpacted}
+              onChange={handleFormChange}
+            >
+              <option value="">Select…</option>
+              <option>Yes</option>
+              <option>No</option>
+            </Form.Select>
+          </Form.Group>
 
-            <Button type="submit" variant="primary">
-              Submit
-            </Button>
-          </Form>
-        </Modal.Body>
-      </Modal>
+          {/* Screenshot */}
+          <Form.Group className="mb-3">
+            <Form.Label>Upload Screenshot</Form.Label>
+            <Form.Control
+              type="file"
+              name="screenshot"
+              onChange={handleFormChange}
+              accept="image/*"
+            />
+          </Form.Group>
+        </>
+      )}
 
-      {/* View Modal */}
-      <Modal
-        show={showViewModal}
-        onHide={() => setShowViewModal(false)}
-        fullscreen="sm-down"
-        centered
-      >
-        <Modal.Header closeButton>
-          <Modal.Title>View Ticket</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-  {selectedTicket && (
-    <>
-      <p><strong>Title:</strong> {selectedTicket.title}</p>
-      <p><strong>Description:</strong> {selectedTicket.description}</p>
-      <p><strong>Submitted By:</strong> {selectedTicket.submittedBy}</p>
-      <p>
-        <strong>Created:</strong>{' '}
-        {fmtDate(selectedTicket.created_at ?? selectedTicket.created)}
-      </p>
-      <p>
-        <strong>Updated:</strong>{' '}
-        {fmtDate(selectedTicket.updated_at ?? selectedTicket.updated)}
-      </p>
-    </>
-  )}
-</Modal.Body>
+      <Button type="submit" variant="primary">
+        Submit
+      </Button>
+    </Form>
+  </Modal.Body>
+</Modal>
 
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowViewModal(false)}>
-            Close
-          </Button>
-        </Modal.Footer>
-      </Modal>
+
 
       {/* Edit Modal */}
       <Modal

@@ -47,9 +47,10 @@ function Login({ setIsAuthenticated, setRole }) {
     
 
     // ← pull role + first_name, normalize role, and save firstName
-    const { role, first_name } = res.data;
+    const { role, first_name, company } = res.data;
     const userRole = role.toLowerCase();
     localStorage.setItem('firstName', first_name);
+    localStorage.setItem('company', company);
 
     // ← your existing auth setup
     setIsAuthenticated(true);
