@@ -47,10 +47,12 @@ function TicketBoard() {
   const company = localStorage.getItem("company") || "";
 
   // List of companies who get the simplified form
-const specialCompanies = ['BAC', 'Confirmifiy', 'Arwalsh'];
+const specialCompanies = ['BAC', 'Confirmifiy', 'Ari walsh'];
 
 // Boolean flag for whether we need the simplified fields
 const isSpecial = specialCompanies.includes(company);
+console.log("📝 company:", company, "isSpecial:", isSpecial);
+
 
 
   useEffect(() => {

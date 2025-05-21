@@ -44,10 +44,11 @@ function Login({ setIsAuthenticated, setRole }) {
       email: loginEmail,
       password: loginPassword
     });
-    
+    console.log("🔍 login response data:", res.data);
+
 
     // ← pull role + first_name, normalize role, and save firstName
-    const { role, first_name, company } = res.data;
+    const { role, first_name } = res.data;
     const userRole = role.toLowerCase();
     localStorage.setItem('firstName', first_name);
     localStorage.setItem('company', company);
@@ -55,6 +56,11 @@ function Login({ setIsAuthenticated, setRole }) {
     // ← your existing auth setup
     setIsAuthenticated(true);
     setRole(userRole);
+    // ← after setRole, before reloadTickets()
+    const profileRes = await axios.get(`${API_BASE}/users?email=${loginEmail}`);
+    const userCompany = profileRes.data[0]?.company || "";
+    localStorage.setItem('company', userCompany);
+
     localStorage.setItem('userEmail', loginEmail);
     localStorage.setItem('isAuthenticated', 'true');
     localStorage.setItem('role', userRole);
