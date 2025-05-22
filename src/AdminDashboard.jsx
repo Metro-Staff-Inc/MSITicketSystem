@@ -71,9 +71,9 @@ function AdminDashboard({ setIsAuthenticated }) {
           email: corpEmail,
           company: corpCompany,
           role: corpRole,               // your backend must accept this
-          password: corpPassword
-        }
-      );
+          password: corpPassword,
+          send_welcome_email: true  
+        });
       // clear & close
       setCorpFirstName('');
       setCorpLastName('');

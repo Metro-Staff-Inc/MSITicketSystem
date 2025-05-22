@@ -47,7 +47,9 @@ function TicketBoard() {
   const company = localStorage.getItem("company") || "";
 
   // List of companies who get the simplified form
-const specialCompanies = ['BAC', 'Confirmifiy', 'Ari walsh'];
+// List of companies who get the simplified form
+const specialCompanies = ['BAC', 'Confirmify', 'Ari Walsh'];
+
 
 // Boolean flag for whether we need the simplified fields
 const isSpecial = specialCompanies.includes(company);
@@ -375,93 +377,95 @@ console.log("📝 company:", company, "isSpecial:", isSpecial);
       {isSpecial ? (
         // ── Simplified form for BAC, Confirmifiy, Arwalsh ──
         <>
-          {/* Subject */}
-          <Form.Group className="mb-3">
-            <Form.Label>Subject</Form.Label>
-            <Form.Control
-              type="text"
-              name="subject"
-              value={form.subject}
-              onChange={handleFormChange}
-              required
-            />
-          </Form.Group>
+          {/* Simplified form for BAC, Confirmify, Ariwalsh */}
+{/* Subject */}
+<Form.Group className="mb-3">
+  <Form.Label>Subject</Form.Label>
+  <Form.Control
+    type="text"
+    name="subject"
+    value={form.subject}
+    onChange={handleFormChange}
+    required
+  />
+</Form.Group>
 
-          {/* CC Emails */}
-          <Form.Group className="mb-3">
-            <Form.Label>What email do you want to be cc'd?</Form.Label>
-            <Form.Control
-              type="text"
-              name="additionalPeople"
-              value={form.additionalPeople}
-              onChange={handleFormChange}
-            />
-          </Form.Group>
+{/* CC Emails */}
+<Form.Group className="mb-3">
+  <Form.Label>What email do you want to be cc'd?</Form.Label>
+  <Form.Control
+    type="text"
+    name="additionalPeople"
+    value={form.additionalPeople}
+    onChange={handleFormChange}
+  />
+</Form.Group>
 
-          {/* Location (fixed to Corporate) */}
-          <Form.Group className="mb-3">
-            <Form.Label>Location</Form.Label>
-            <Form.Control
-              type="text"
-              name="msiLocation"
-              value="Corporate"
-              readOnly
-            />
-          </Form.Group>
+{/* Location (always Corporate) */}
+<Form.Group className="mb-3">
+  <Form.Label>Location</Form.Label>
+  <Form.Control
+    type="text"
+    name="msiLocation"
+    value="Corporate"
+    readOnly
+  />
+</Form.Group>
 
-          {/* Help Type */}
-          <Form.Group className="mb-3">
-            <Form.Label>What Do You Need Help With?</Form.Label>
-            <Form.Select
-              name="helpType"
-              value={form.helpType}
-              onChange={handleFormChange}
-              required
-            >
-              <option value="">Select…</option>
-              <option>Tech Issues</option>
-              <option>Request</option>
-            </Form.Select>
-          </Form.Group>
+{/* What do you need help with? */}
+<Form.Group className="mb-3">
+  <Form.Label>What do you need help with?</Form.Label>
+  <Form.Select
+    name="helpType"
+    value={form.helpType}
+    onChange={handleFormChange}
+    required
+  >
+    <option value="">Select…</option>
+    <option>Tech Issue</option>
+    <option>Request</option>
+  </Form.Select>
+</Form.Group>
 
-          {/* Details */}
-          <Form.Group className="mb-3">
-            <Form.Label>Please describe what help or request is needed in detail</Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={3}
-              name="details"
-              value={form.details}
-              onChange={handleFormChange}
-              required
-            />
-          </Form.Group>
+{/* Details */}
+<Form.Group className="mb-3">
+  <Form.Label>Please describe what help or request is needed in detail</Form.Label>
+  <Form.Control
+    as="textarea"
+    rows={3}
+    name="details"
+    value={form.details}
+    onChange={handleFormChange}
+    required
+  />
+</Form.Group>
 
-          {/* Customer Impacted */}
-          <Form.Group className="mb-3">
-            <Form.Label>Is a customer directly impacted?</Form.Label>
-            <Form.Select
-              name="customerImpacted"
-              value={form.customerImpacted}
-              onChange={handleFormChange}
-              required
-            >
-              <option value="">Select…</option>
-              <option>Yes</option>
-              <option>No</option>
-            </Form.Select>
-          </Form.Group>
+{/* Customer Impacted */}
+<Form.Group className="mb-3">
+  <Form.Label>Is a customer directly impacted?</Form.Label>
+  <Form.Select
+    name="customerImpacted"
+    value={form.customerImpacted}
+    onChange={handleFormChange}
+    required
+  >
+    <option value="">Select…</option>
+    <option>Yes</option>
+    <option>No</option>
+  </Form.Select>
+</Form.Group>
 
-          {/* Screenshot */}
-          <Form.Group className="mb-3">
-            <Form.Label>Upload Screenshot</Form.Label>
-            <Form.Control
-              type="file"
-              name="screenshot"
-              onChange={handleFormChange}
-              accept="image/*"
-            />
-          </Form.Group>
+{/* Upload Screenshot */}
+<Form.Group className="mb-3">
+  <Form.Label>Upload Screenshot</Form.Label>
+  <Form.Control
+    type="file"
+    name="screenshot"
+    onChange={handleFormChange}
+    accept="image/*"
+  />
+</Form.Group>
+
         </>
       ) : (
         // ── Full MSI form for everyone else ──
@@ -612,6 +616,41 @@ console.log("📝 company:", company, "isSpecial:", isSpecial);
   </Modal.Body>
 </Modal>
 
+{/* View Ticket Modal */}
+<Modal
+  show={showViewModal}
+  onHide={() => setShowViewModal(false)}
+  fullscreen="sm-down"
+  centered
+>
+  <Modal.Header closeButton>
+    <Modal.Title>View Ticket</Modal.Title>
+  </Modal.Header>
+  <Modal.Body>
+    {selectedTicket && (
+      <>
+        <p><strong>Subject:</strong> {selectedTicket.title}</p>
+        <p><strong>Description:</strong> {selectedTicket.description}</p>
+        <p><strong>Submitted by:</strong> {selectedTicket.submitted_by_name || selectedTicket.submittedBy}</p>
+        <p><strong>Status:</strong> {selectedTicket.status}</p>
+        <p><strong>Priority:</strong> {selectedTicket.priority}</p>
+        {selectedTicket.cc_email && (
+          <p><strong>CC:</strong> {selectedTicket.cc_email}</p>
+        )}
+        {selectedTicket.screenshot && (
+          <p>
+            <strong>Screenshot:</strong><br/>
+            <img
+              src={selectedTicket.screenshot}
+              alt="ticket screenshot"
+              style={{ maxWidth: '100%' }}
+            />
+          </p>
+        )}
+      </>
+    )}
+  </Modal.Body>
+</Modal>
 
 
       {/* Edit Modal */}

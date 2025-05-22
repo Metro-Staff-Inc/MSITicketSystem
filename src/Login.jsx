@@ -51,15 +51,21 @@ function Login({ setIsAuthenticated, setRole }) {
     const { role, first_name } = res.data;
     const userRole = role.toLowerCase();
     localStorage.setItem('firstName', first_name);
-    localStorage.setItem('company', company);
+    
 
     // ← your existing auth setup
     setIsAuthenticated(true);
     setRole(userRole);
     // ← after setRole, before reloadTickets()
     const profileRes = await axios.get(`${API_BASE}/users?email=${loginEmail}`);
-    const userCompany = profileRes.data[0]?.company || "";
-    localStorage.setItem('company', userCompany);
+// Find the exact user object in the array:
+const matched = profileRes.data.find(u =>
+  u.email.toLowerCase() === loginEmail.toLowerCase()
+);
+const userCompany = matched?.company || "";
+console.log("🏷️ Matched company:", userCompany);
+localStorage.setItem('company', userCompany);
+
 
     localStorage.setItem('userEmail', loginEmail);
     localStorage.setItem('isAuthenticated', 'true');
