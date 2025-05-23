@@ -42,6 +42,10 @@ export default function AdminPanel({ role }) {
   const [showArchived, setShowArchived] = useState(false);
   const [showCompleted, setShowCompleted] = useState(false);
   const [completedTickets, setCompletedTickets] = useState([]);
+  // — high‑priority confirmation —
+const [showHighModal,     setShowHighModal]     = useState(false); // popup flag
+const [pendingHighTicket, setPendingHighTicket] = useState(null);  // ticket object
+
   
 
   // Fetch tickets (active vs archived)
@@ -157,17 +161,20 @@ export default function AdminPanel({ role }) {
   
   
   const handlePriorityChange = (t, newPriority) => {
-    updateTicket(t.id, { priority: newPriority });
-    setAllTickets(prev =>
-      prev.map(x => x.id === t.id ? { ...x, priority: newPriority } : x)
-    );
-  };
-  const handleAssignChange = (t, newAssignee) => {
-    updateTicket(t.id, { assigned_to: newAssignee });
-    setAllTickets(prev =>
-      prev.map(x => x.id === t.id ? { ...x, assignedTo: newAssignee } : x)
-    );
-  };
+  // If “High” was picked and the ticket wasn’t already High → open popup
+  if (newPriority === 'High' && t.priority !== 'High') {
+    setPendingHighTicket(t);     // remember which ticket we’re editing
+    setShowHighModal(true);      // show confirmation modal
+    return;                      // do NOT save yet
+  }
+
+  // Otherwise, just update immediately
+  updateTicket(t.id, { priority: newPriority });
+  setAllTickets(prev =>
+    prev.map(x => x.id === t.id ? { ...x, priority: newPriority } : x)
+  );
+};
+
 
   console.log(
     '🔍 showArchived:', showArchived,
@@ -180,22 +187,45 @@ export default function AdminPanel({ role }) {
   
 
   const filteredTickets = allTickets.filter(t => {
-      // 🔍 Location filter: if one is entered but this ticket’s location doesn’t match, skip
-  if (filterLocation && t.location !== filterLocation) {
+  // — 1. Status drop‑down —
+  if (filterStatus && t.status !== filterStatus) {
     return false;
   }
-    // 1️⃣ If “Show Archived” is active, only show archived tickets
-    if (showArchived) {
-      return t.archived === true;
-    }
-    // 2️⃣ Else if “Show Completed” is active, only show resolved/closed
-    if (showCompleted) {
-      return t.status === "Resolved" || t.status === "Closed";
-    }
-    // 3️⃣ Otherwise (default), only show open or in-progress
-    return t.status === "Open" || t.status === "In Progress";
-  });
-  
+
+  // — 2. Priority drop‑down —
+  if (filterPriority && t.priority !== filterPriority) {
+    return false;
+  }
+
+  // — 3. “Submitted By” search (case‑insensitive “contains”) —
+  if (
+    filterUser &&
+    !t.submitted_by.toLowerCase().includes(filterUser.toLowerCase())
+  ) {
+    return false;
+  }
+
+  // — 4. Location filter — NOW smart/contains
+if (
+  filterLocation &&                                           // something typed
+  !(t.location || "").toLowerCase().includes(
+      filterLocation.toLowerCase()
+  )
+) {
+  return false;                                               // skip if no match
+}
+
+
+  // — 5. archived / completed toggles (keep your existing logic) —
+  if (showArchived) {
+    return t.archived === true;
+  }
+  if (showCompleted) {
+    return t.status === "Resolved" || t.status === "Closed";
+  }
+  return t.status === "Open" || t.status === "In Progress";
+});
+
   
   
 
@@ -555,6 +585,58 @@ export default function AdminPanel({ role }) {
 
     <Button variant="secondary" className="ms-2" onClick={() => setShowResponseModal(false)}>
       Cancel
+    </Button>
+  </Modal.Footer>
+</Modal>
+{/* High‑priority confirmation */}
+<Modal
+  show={showHighModal}
+  onHide={() => setShowHighModal(false)}
+  centered
+>
+  <Modal.Header closeButton>
+    <Modal.Title>Make This a High‑Priority Ticket?</Modal.Title>
+  </Modal.Header>
+
+  <Modal.Body>
+    {pendingHighTicket && (
+      <>
+        Ticket&nbsp;<strong>#{pendingHighTicket.id}</strong> –&nbsp;
+        “{pendingHighTicket.title}”
+      </>
+    )}
+    <p className="mt-3">
+      Do you want to mark this ticket as <strong>High priority</strong>?
+    </p>
+  </Modal.Body>
+
+  <Modal.Footer>
+    <Button
+      variant="secondary"
+      onClick={() => setShowHighModal(false)}   /* No = close, keep old priority */
+    >
+      No
+    </Button>
+
+    <Button
+      variant="danger"
+      onClick={() => {
+        if (!pendingHighTicket) return;
+        /* 1️⃣ update on server */
+        updateTicket(pendingHighTicket.id, { priority: 'High' });
+        /* 2️⃣ update locally so UI refreshes */
+        setAllTickets(prev =>
+          prev.map(x =>
+            x.id === pendingHighTicket.id ? { ...x, priority: 'High' } : x
+          )
+        );
+        /* 3️⃣ close the modal */
+        setShowHighModal(false);
+        setPendingHighTicket(null);
+        /* 4️⃣ (Step 4 will send e‑mails) */
+      }}
+    >
+      Yes, make it High
     </Button>
   </Modal.Footer>
 </Modal>

@@ -153,8 +153,21 @@ const INITIAL_FORM = {
     firstName: '',
     lastName: '',
     convertInbox: ''
-  }
+  },
+  rensa: [
+    { startDate: '', lastName: '', firstName: '', aident: '' }   // the first person
+  ],
+
 };
+
+// --- helpers for array‑based forms ---
+const addRensaPerson = (prev) => [
+  ...prev,
+  { startDate: '', lastName: '', firstName: '', aident: '' }
+];
+
+const removeRensaPerson = (prev, idx) =>
+  prev.filter((_, i) => i !== idx);
 
 
   // your big form state
@@ -164,7 +177,7 @@ const INITIAL_FORM = {
 
 
   const techCategories = ['Application help', 'Computer Login', 'General Computer issues', 'Office 365', 'Printing', 'VPN Connecting', 'Time Clock'];
-  const requestCategories = ['WebTrax', 'TempWorks', 'New Computer', 'New Phone'];
+  const requestCategories = ['WebTrax', 'TempWorks', 'New Computer', 'New Phone', 'Start Date (Rensa)'];
   const msiLocations = ['Aurora', 'Bartlett', 'Bolingbrook', 'Burbank', 'Corporate', 'Elgin', 'Elk Grove', 'Palatine', 'Las Vegas', 'Melrose Park', 'On-Site', 'West Chicago'];
   const companyHelpTypes = {
   BAC:        ['BAC Issue A', 'BAC Issue B', 'BAC Request X'],
@@ -200,15 +213,20 @@ const removeScreenshot = (idxToRemove) => {
 };
 
 
-  const handleNestedChange = (section, field, value) => {
-    setForm(prev => ({
-      ...prev,
-      [section]: {
-        ...prev[section],
-        [field]: value
-      }
-    }));
-  };
+  const handleNestedChange = (section, field, value, idx = null) => {
+  setForm(prev => ({
+    ...prev,
+    [section]: Array.isArray(prev[section])
+      ? prev[section].map((obj, i) =>
+          i === idx ? { ...obj, [field]: value } : obj
+        )
+      : {                            // ← original object path
+          ...prev[section],
+          [field]: value
+        }
+  }));
+};
+
 
   const handleEditClick = (ticket) => {
     setEditForm({ title: ticket.title, description: ticket.description });
@@ -384,7 +402,27 @@ const removeScreenshot = (idxToRemove) => {
     // 1) build a FormData object
     const fd = new FormData();
     fd.append('title', form.subject);
-    fd.append('description', form.details);
+    // 📝 build the description
+let desc = form.details;
+
+/* If this ticket is “Start Date (Rensa)”, build a header for
+   every person the user added */
+if (form.category === 'Start Date (Rensa)') {
+  const header = form.rensa
+    .map((p, idx) => (
+      `— Person ${idx + 1} —\n` +
+      `🗓️ Start Date: ${p.startDate}\n` +
+      `👤 Name:       ${p.lastName}, ${p.firstName}\n` +
+      `🆔 Aident #:   ${p.aident}\n`
+    ))
+    .join('\n');      // blank line between people
+
+  desc = `${header}\n\n${desc}`;   // prepend to narrative
+}
+
+
+fd.append('description', desc);
+
     fd.append('submitted_by', me);
     fd.append('status', 'Open');
     fd.append('priority', 'Low');
@@ -392,6 +430,9 @@ const removeScreenshot = (idxToRemove) => {
     fd.append('location', form.msiLocation || 'Corporate');
     if (form.additionalPeople) {
       fd.append('cc_email', form.additionalPeople);
+      fd.append('help_type', form.helpType);   // new
+fd.append('category',  form.category);   // new
+
     }
     // 2) append each screenshot
     form.screenshots.forEach(file => fd.append('screenshots', file));
@@ -594,6 +635,95 @@ form.screenshots.forEach(file => URL.revokeObjectURL(file));
         </Form.Select>
       </Form.Group>
     )}
+        {/* Extra fields for “Start Date (Rensa)” */}
+{form.category === 'Start Date (Rensa)' && (
+  <>
+    {form.rensa.map((p, idx) => (
+      <div key={idx} className="border rounded p-3 mb-3 bg-light-subtle">
+        <h6 className="mb-3">
+          Person&nbsp;{idx + 1}
+          {form.rensa.length > 1 && (
+            <Button
+              variant="outline-danger"
+              size="sm"
+              className="ms-2"
+              onClick={() =>
+                setForm(prev => ({
+                  ...prev,
+                  rensa: removeRensaPerson(prev.rensa, idx)
+                }))
+              }
+            >
+              ×
+            </Button>
+          )}
+        </h6>
+
+        {/* Start Date */}
+        <Form.Group className="mb-2">
+          <Form.Label>Start Date (YYYY‑MM‑DD)</Form.Label>
+          <Form.Control
+            type="date"
+            value={p.startDate}
+            onChange={e =>
+              handleNestedChange('rensa', 'startDate', e.target.value, idx)
+            }
+            required
+          />
+        </Form.Group>
+
+        {/* Name */}
+        <Row className="mb-2">
+          <Col>
+            <Form.Label>Last Name</Form.Label>
+            <Form.Control
+              value={p.lastName}
+              onChange={e =>
+                handleNestedChange('rensa', 'lastName', e.target.value, idx)
+              }
+              required
+            />
+          </Col>
+          <Col>
+            <Form.Label>First Name</Form.Label>
+            <Form.Control
+              value={p.firstName}
+              onChange={e =>
+                handleNestedChange('rensa', 'firstName', e.target.value, idx)
+              }
+              required
+            />
+          </Col>
+        </Row>
+
+        {/* Aident # */}
+        <Form.Group>
+          <Form.Label>Aident&nbsp;#</Form.Label>
+          <Form.Control
+            value={p.aident}
+            onChange={e =>
+              handleNestedChange('rensa', 'aident', e.target.value, idx)
+            }
+            required
+          />
+        </Form.Group>
+      </div>
+    ))}
+
+    {/* + Add another person */}
+    <Button
+      variant="outline-primary"
+      size="sm"
+      onClick={() =>
+        setForm(prev => ({ ...prev, rensa: addRensaPerson(prev.rensa) }))
+      }
+    >
+      ＋ Add another person
+    </Button>
+  </>
+)}
+
+
 
     {/* Details */}
     <Form.Group className="mb-3">
