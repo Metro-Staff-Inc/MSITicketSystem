@@ -1,5 +1,5 @@
 // src/TicketBoard.jsx
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Button, Card, Modal, Form, Row, Col, Toast, ToastContainer } from 'react-bootstrap';
 import { useTickets } from './TicketContext';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -125,37 +125,43 @@ console.log("📝 company:", company, "isSpecial:", isSpecial);
       // 4️⃣ Add it to your archivedTickets bucket
       setArchivedTickets(prev => [updatedTicket, ...prev]);
     }
-    
+
+    // --- initial form template ---
+const INITIAL_FORM = {
+  requestedBy:   me,
+  subject: '',
+  additionalPeople: '',
+  msiLocation: '',
+  onSiteLocation: '',
+  helpType: '',
+  category: '',
+  details: '',
+  customerImpacted: '',
+  screenshots: [],
+  onboarding: {
+    firstName: '',
+    lastName: '',
+    startDate: '',
+    officeLocation: '',
+    needsCell: '',
+    webtrax: '',
+    needsComputer: '',
+    sharedInbox: '',
+    sharedInboxName: ''
+  },
+  offboarding: {
+    firstName: '',
+    lastName: '',
+    convertInbox: ''
+  }
+};
+
 
   // your big form state
-  const [form, setForm] = useState({
-    requestedBy:   me, 
-    subject: '',
-    additionalPeople: '',
-    msiLocation: '',
-    onSiteLocation: '',
-    helpType: '',
-    category: '',
-    details: '',
-    customerImpacted: '',
-    screenshot: null,
-    onboarding: {
-      firstName: '',
-      lastName: '',
-      startDate: '',
-      officeLocation: '',
-      needsCell: '',
-      webtrax: '',
-      needsComputer: '',
-      sharedInbox: '',
-      sharedInboxName: ''
-    },
-    offboarding: {
-      firstName: '',
-      lastName: '',
-      convertInbox: ''
-    }
-  });
+  const [form, setForm] = useState({ ...INITIAL_FORM });
+  const fileInputRef = useRef(null);   // 🔗 will point to the file chooser
+
+
 
   const techCategories = ['Application help', 'Computer Login', 'General Computer issues', 'Office 365', 'Printing', 'VPN Connecting', 'Time Clock'];
   const requestCategories = ['WebTrax', 'TempWorks', 'New Computer', 'New Phone'];
@@ -167,13 +173,32 @@ console.log("📝 company:", company, "isSpecial:", isSpecial);
 };
 
   const handleFormChange = (e) => {
-    const { name, value, files } = e.target;
-    if (name === 'screenshot') {
-      setForm({ ...form, screenshot: files[0] });
-    } else {
-      setForm({ ...form, [name]: value });
-    }
-  };
+  const { name, files, value } = e.target;
+
+  if (name === 'screenshots') {
+    setForm(prev => ({
+      ...prev,
+      screenshots: [
+        ...prev.screenshots,      // keep existing
+        ...Array.from(files)      // add new ones
+      ]
+    }));
+  } else {
+    setForm(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  }
+};
+
+
+const removeScreenshot = (idxToRemove) => {
+  setForm(prev => ({
+    ...prev,
+    screenshots: prev.screenshots.filter((_, idx) => idx !== idxToRemove)
+  }));
+};
+
 
   const handleNestedChange = (section, field, value) => {
     setForm(prev => ({
@@ -354,260 +379,301 @@ console.log("📝 company:", company, "isSpecial:", isSpecial);
 
   <Modal.Body>
     <Form
-      onSubmit={async e => {
-        e.preventDefault();
-        const payload = {
-          title:        form.subject,
-          description:  form.details,
-          submitted_by: me,
-          cc_email:     form.additionalPeople || null,
-          status:       'Open',
-          priority:     'Low',
-          archived:     false,
-          screenshot:   form.screenshot || null
-        };
-        try {
-          await createTicket(payload);
-          setShowSubmitModal(false);
-        } catch (err) {
-          console.error(err);
-        }
-      }}
-    >
+  onSubmit={async e => {
+    e.preventDefault();
+    // 1) build a FormData object
+    const fd = new FormData();
+    fd.append('title', form.subject);
+    fd.append('description', form.details);
+    fd.append('submitted_by', me);
+    fd.append('status', 'Open');
+    fd.append('priority', 'Low');
+    fd.append('archived', 'false');
+    fd.append('location', form.msiLocation || 'Corporate');
+    if (form.additionalPeople) {
+      fd.append('cc_email', form.additionalPeople);
+    }
+    // 2) append each screenshot
+    form.screenshots.forEach(file => fd.append('screenshots', file));
+    // 3) send as multipart/form-data
+    try {
+      await axios.post(
+        '/tickets',
+        fd,
+        { headers: { 'Content-Type': 'multipart/form-data' } }
+      );
+      setShowSubmitModal(false);
+      setForm({ ...INITIAL_FORM });      // ← resets every field
+      // 🔄 reset the <input type="file"> element
+if (fileInputRef.current) fileInputRef.current.value = "";
+form.screenshots.forEach(file => URL.revokeObjectURL(file));
+
+    } catch (err) {
+      console.error(err);
+    }
+  }}
+>
+
       {isSpecial ? (
-        // ── Simplified form for BAC, Confirmifiy, Arwalsh ──
-        <>
-          {/* Simplified form for BAC, Confirmify, Ariwalsh */}
-{/* Subject */}
-<Form.Group className="mb-3">
-  <Form.Label>Subject</Form.Label>
-  <Form.Control
-    type="text"
-    name="subject"
-    value={form.subject}
-    onChange={handleFormChange}
-    required
-  />
-</Form.Group>
+  // ── Simplified form for BAC, Confirmify, Ariwalsh ──
+  <>
+    {/* Subject */}
+    <Form.Group className="mb-3">
+      <Form.Label>Subject</Form.Label>
+      <Form.Control
+        type="text"
+        name="subject"
+        value={form.subject}
+        onChange={handleFormChange}
+        required
+      />
+    </Form.Group>
 
-{/* CC Emails */}
-<Form.Group className="mb-3">
-  <Form.Label>What email do you want to be cc'd?</Form.Label>
-  <Form.Control
-    type="text"
-    name="additionalPeople"
-    value={form.additionalPeople}
-    onChange={handleFormChange}
-  />
-</Form.Group>
+    {/* CC Emails */}
+    <Form.Group className="mb-3">
+      <Form.Label>What email do you want to be cc'd?</Form.Label>
+      <Form.Control
+        type="text"
+        name="additionalPeople"
+        value={form.additionalPeople}
+        onChange={handleFormChange}
+      />
+    </Form.Group>
 
-{/* Location (always Corporate) */}
-<Form.Group className="mb-3">
-  <Form.Label>Location</Form.Label>
-  <Form.Control
-    type="text"
-    name="msiLocation"
-    value="Corporate"
-    readOnly
-  />
-</Form.Group>
+    {/* Location (always Corporate) */}
+    <Form.Group className="mb-3">
+      <Form.Label>Location</Form.Label>
+      <Form.Control
+        type="text"
+        name="msiLocation"
+        value="Corporate"
+        readOnly
+      />
+    </Form.Group>
 
-{/* What do you need help with? */}
-<Form.Group className="mb-3">
-  <Form.Label>What do you need help with?</Form.Label>
-  <Form.Select
-    name="helpType"
-    value={form.helpType}
-    onChange={handleFormChange}
-    required
-  >
-    <option value="">Select…</option>
-    <option>Tech Issue</option>
-    <option>Request</option>
-  </Form.Select>
-</Form.Group>
+    {/* What do you need help with? */}
+    <Form.Group className="mb-3">
+      <Form.Label>What do you need help with?</Form.Label>
+      <Form.Select
+        name="helpType"
+        value={form.helpType}
+        onChange={handleFormChange}
+        required
+      >
+        <option value="">Select…</option>
+        <option>Tech Issue</option>
+        <option>Request</option>
+      </Form.Select>
+    </Form.Group>
 
-{/* Details */}
-<Form.Group className="mb-3">
-  <Form.Label>Please describe what help or request is needed in detail</Form.Label>
-  <Form.Control
-    as="textarea"
-    rows={3}
-    name="details"
-    value={form.details}
-    onChange={handleFormChange}
-    required
-  />
-</Form.Group>
+    {/* Details */}
+    <Form.Group className="mb-3">
+      <Form.Label>Please describe what help or request is needed in detail</Form.Label>
+      <Form.Control
+        as="textarea"
+        rows={3}
+        name="details"
+        value={form.details}
+        onChange={handleFormChange}
+        required
+      />
+    </Form.Group>
 
-{/* Customer Impacted */}
-<Form.Group className="mb-3">
-  <Form.Label>Is a customer directly impacted?</Form.Label>
-  <Form.Select
-    name="customerImpacted"
-    value={form.customerImpacted}
-    onChange={handleFormChange}
-    required
-  >
-    <option value="">Select…</option>
-    <option>Yes</option>
-    <option>No</option>
-  </Form.Select>
-</Form.Group>
+    {/* Customer Impacted */}
+    <Form.Group className="mb-3">
+      <Form.Label>Is a customer directly impacted?</Form.Label>
+      <Form.Select
+        name="customerImpacted"
+        value={form.customerImpacted}
+        onChange={handleFormChange}
+        required
+      >
+        <option value="">Select…</option>
+        <option>Yes</option>
+        <option>No</option>
+      </Form.Select>
+    </Form.Group>
 
-{/* Upload Screenshot */}
-<Form.Group className="mb-3">
-  <Form.Label>Upload Screenshot</Form.Label>
-  <Form.Control
-    type="file"
-    name="screenshot"
-    onChange={handleFormChange}
-    accept="image/*"
-  />
-</Form.Group>
+    {/* Upload Screenshot */}
+    <Form.Group className="mb-3">
+      <Form.Label>Upload Screenshot</Form.Label>
+      <Form.Control
+        type="file"
+        name="screenshots"
+        multiple
+        onChange={handleFormChange}
+        accept="image/*"
+        ref={fileInputRef}
+      />
+    </Form.Group>
+  </>
+) : (
+  // ── Full MSI form for everyone else ──
+  <>
+    {/* Subject */}
+    <Form.Group className="mb-3">
+      <Form.Label>Subject</Form.Label>
+      <Form.Control
+        type="text"
+        name="subject"
+        value={form.subject}
+        onChange={handleFormChange}
+        required
+      />
+    </Form.Group>
 
-        </>
-      ) : (
-        // ── Full MSI form for everyone else ──
-        <>
-          {/* Subject */}
-          <Form.Group className="mb-3">
-            <Form.Label>Subject</Form.Label>
-            <Form.Control
-              type="text"
-              name="subject"
-              value={form.subject}
-              onChange={handleFormChange}
-              required
-            />
-          </Form.Group>
+    {/* CC Emails */}
+    <Form.Group className="mb-3">
+      <Form.Label>What email do you want to be cc'd?</Form.Label>
+      <Form.Control
+        type="text"
+        name="additionalPeople"
+        value={form.additionalPeople}
+        onChange={handleFormChange}
+      />
+    </Form.Group>
 
-          {/* CC Emails */}
-          <Form.Group className="mb-3">
-            <Form.Label>What email do you want to be cc'd?</Form.Label>
-            <Form.Control
-              type="text"
-              name="additionalPeople"
-              value={form.additionalPeople}
-              onChange={handleFormChange}
-            />
-          </Form.Group>
+    {/* MSI Location */}
+    <Form.Group className="mb-3">
+      <Form.Label>MSI Location</Form.Label>
+      <Form.Select
+        name="msiLocation"
+        value={form.msiLocation}
+        onChange={handleFormChange}
+        required
+      >
+        <option value="">Select…</option>
+        {msiLocations.map(loc => (
+          <option key={loc}>{loc}</option>
+        ))}
+      </Form.Select>
+    </Form.Group>
 
-          {/* MSI Location */}
-          <Form.Group className="mb-3">
-            <Form.Label>MSI Location</Form.Label>
-            <Form.Select
-              name="msiLocation"
-              value={form.msiLocation}
-              onChange={handleFormChange}
-              required
-            >
-              <option value="">Select…</option>
-              {msiLocations.map(loc => (
-                <option key={loc}>{loc}</option>
-              ))}
-            </Form.Select>
-          </Form.Group>
+    {/* On‐site Location */}
+    <Form.Group className="mb-3">
+      <Form.Label>On-site Location</Form.Label>
+      <Form.Control
+        type="text"
+        name="onSiteLocation"
+        value={form.onSiteLocation}
+        onChange={handleFormChange}
+      />
+    </Form.Group>
 
-          {/* On‐site Location */}
-          <Form.Group className="mb-3">
-            <Form.Label>On-site Location</Form.Label>
-            <Form.Control
-              type="text"
-              name="onSiteLocation"
-              value={form.onSiteLocation}
-              onChange={handleFormChange}
-            />
-          </Form.Group>
+    {/* Help Type */}
+    <Form.Group className="mb-3">
+      <Form.Label>What Do You Need Help With?</Form.Label>
+      <Form.Select
+        name="helpType"
+        value={form.helpType}
+        onChange={handleFormChange}
+        required
+      >
+        <option value="">Select…</option>
+        <option>Tech Issue</option>
+        <option>Request</option>
+        <option>Onboarding</option>
+        <option>Offboarding</option>
+      </Form.Select>
+    </Form.Group>
 
-          {/* Help Type */}
-          <Form.Group className="mb-3">
-            <Form.Label>What Do You Need Help With?</Form.Label>
-            <Form.Select
-              name="helpType"
-              value={form.helpType}
-              onChange={handleFormChange}
-              required
-            >
-              <option value="">Select…</option>
-              <option>Tech Issue</option>
-              <option>Request</option>
-              <option>Onboarding</option>
-              <option>Offboarding</option>
-            </Form.Select>
-          </Form.Group>
+    {/* Category */}
+    {['Tech Issue', 'Request'].includes(form.helpType) && (
+      <Form.Group className="mb-3">
+        <Form.Label>Category</Form.Label>
+        <Form.Select
+          name="category"
+          value={form.category}
+          onChange={handleFormChange}
+          required
+        >
+          <option value="">Select…</option>
+          {(form.helpType === 'Tech Issue' ? techCategories : requestCategories).map(cat => (
+            <option key={cat}>{cat}</option>
+          ))}
+        </Form.Select>
+      </Form.Group>
+    )}
 
-          {/* Category */}
-          {['Tech Issue', 'Request'].includes(form.helpType) && (
-            <Form.Group className="mb-3">
-              <Form.Label>Category</Form.Label>
-              <Form.Select
-                name="category"
-                value={form.category}
-                onChange={handleFormChange}
-                required
-              >
-                <option value="">Select…</option>
-                {(form.helpType === 'Tech Issue' ? techCategories : requestCategories).map(cat => (
-                  <option key={cat}>{cat}</option>
-                ))}
-              </Form.Select>
-            </Form.Group>
-          )}
+    {/* Details */}
+    <Form.Group className="mb-3">
+      <Form.Label>Please describe what help or request is needed in detail</Form.Label>
+      <Form.Control
+        as="textarea"
+        rows={3}
+        name="details"
+        value={form.details}
+        onChange={handleFormChange}
+        required
+      />
+    </Form.Group>
 
-          {/* Onboarding fields */}
-          {form.helpType === 'Onboarding' && (
-            <>
-              {/* (your existing onboarding fields here) */}
-            </>
-          )}
+    {/* Customer Impacted */}
+    <Form.Group className="mb-3">
+      <Form.Label>Is a customer directly impacted?</Form.Label>
+      <Form.Select
+        name="customerImpacted"
+        value={form.customerImpacted}
+        onChange={handleFormChange}
+      >
+        <option value="">Select…</option>
+        <option>Yes</option>
+        <option>No</option>
+      </Form.Select>
+    </Form.Group>
 
-          {/* Offboarding fields */}
-          {form.helpType === 'Offboarding' && (
-            <>
-              {/* (your existing offboarding fields here) */}
-            </>
-          )}
+    {/* Upload Screenshot */}
+    <Form.Group className="mb-3">
+      <Form.Label>Upload Screenshot</Form.Label>
+      <Form.Control
+        type="file"
+        name="screenshots"
+        multiple
+        onChange={handleFormChange}
+        accept="image/*"
+        ref={fileInputRef}
+      />
+    </Form.Group>
+  </>
+)}
 
-          {/* Details */}
-          <Form.Group className="mb-3">
-            <Form.Label>Please describe what help or request is needed in detail</Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={3}
-              name="details"
-              value={form.details}
-              onChange={handleFormChange}
-              required
-            />
-          </Form.Group>
 
-          {/* Customer Impacted */}
-          <Form.Group className="mb-3">
-            <Form.Label>Is a customer directly impacted?</Form.Label>
-            <Form.Select
-              name="customerImpacted"
-              value={form.customerImpacted}
-              onChange={handleFormChange}
-            >
-              <option value="">Select…</option>
-              <option>Yes</option>
-              <option>No</option>
-            </Form.Select>
-          </Form.Group>
-
-          {/* Screenshot */}
-          <Form.Group className="mb-3">
-            <Form.Label>Upload Screenshot</Form.Label>
-            <Form.Control
-              type="file"
-              name="screenshot"
-              onChange={handleFormChange}
-              accept="image/*"
-            />
-          </Form.Group>
-        </>
-      )}
+{form.screenshots.length > 0 && (
+  <div className="mb-3 d-flex flex-wrap gap-2">
+    {form.screenshots.map((file, idx) => {
+      const url = URL.createObjectURL(file)
+      return (
+        <div key={idx} style={{ position: 'relative', display: 'inline-block' }}>
+          <img
+            src={url}
+            alt={`screenshot-${idx}`}
+            style={{ width: 100, height: 'auto', objectFit: 'cover', borderRadius: 4 }}
+          />
+          <button
+            type="button"
+            onClick={() => removeScreenshot(idx)}
+            style={{
+              position: 'absolute',
+              top: 2,
+              right: 2,
+              background: 'rgba(0,0,0,0.6)',
+              color: 'white',
+              border: 'none',
+              borderRadius: '50%',
+              width: 20,
+              height: 20,
+              cursor: 'pointer',
+              lineHeight: 1,
+              fontSize: '0.9rem',
+            }}
+          >
+            ×
+          </button>
+        </div>
+      )
+    })}
+  </div>
+)}
 
       <Button type="submit" variant="primary">
         Submit

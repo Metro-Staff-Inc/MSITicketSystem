@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Form, Table, Modal, Button, Row, Col, Badge } from 'react-bootstrap';
+import { Image, Card, ListGroup, Form, Table, Modal, Button, Row, Col, Badge } from 'react-bootstrap';
 import { useTickets } from './TicketContext';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { Moon, Sun, EyeFill } from 'react-bootstrap-icons';
@@ -434,34 +434,82 @@ export default function AdminPanel({ role }) {
           </tbody>
         </Table>
 
-        {/* view modal */}
-        <Modal show={showModal} onHide={() => setShowModal(false)}>
-          <Modal.Header closeButton>
-            <Modal.Title>View Ticket</Modal.Title>
-          </Modal.Header>
-          <Modal.Body>
-            {selectedTicket && (
-              <>
-                <p><strong>Subject:</strong> {selectedTicket.title}</p>
-                <p><strong>Description:</strong> {selectedTicket.description}</p>
-                <p><strong>Status:</strong> {selectedTicket.status}</p>
-                <p><strong>Priority:</strong> {selectedTicket.priority}</p>
-                <p><strong>Submitted By:</strong> {selectedTicket.submitted_by}</p>
-                <p><strong>Assigned To:</strong> {selectedTicket.assignedTo || 'Unassigned'}</p>
-                <p><strong>Created At:</strong> {new Date(selectedTicket.created_at).toLocaleString()}</p>
-                {selectedTicket.screenshot && (
-                  <>
-                    <p><strong>Screenshot:</strong></p>
-                    <img src={selectedTicket.screenshot} alt="" className="img-fluid rounded" />
-                  </>
-                )}
-              </>
-            )}
-          </Modal.Body>
-          <Modal.Footer>
-            <Button variant="secondary" onClick={() => setShowModal(false)}>Close</Button>
-          </Modal.Footer>
-        </Modal>
+       {/* View Ticket Modal */}
+<Modal show={showModal} onHide={() => setShowModal(false)}>
+  <Modal.Header closeButton>
+    <Modal.Title>View Ticket</Modal.Title>
+  </Modal.Header>
+
+  <Modal.Body>
+    {selectedTicket && (
+      <Card>
+        <Card.Body>
+          {/* Title + Status Badge */}
+          <Card.Title className="d-flex justify-content-between align-items-center">
+            {selectedTicket.title}
+            <Badge bg={
+              selectedTicket.status === 'Open' ? 'primary'
+              : selectedTicket.status === 'In Progress' ? 'warning'
+              : 'success'
+            }>
+              {selectedTicket.status}
+            </Badge>
+          </Card.Title>
+
+          {/* Key Details */}
+          <ListGroup variant="flush" className="mt-3">
+            <ListGroup.Item>
+              <strong>Description:</strong> {selectedTicket.description}
+            </ListGroup.Item>
+            <ListGroup.Item>
+              <strong>Priority:</strong> {selectedTicket.priority}
+            </ListGroup.Item>
+            <ListGroup.Item>
+              <strong>Submitted By:</strong> {selectedTicket.submitted_by}
+            </ListGroup.Item>
+            <ListGroup.Item>
+              <strong>Assigned To:</strong> {selectedTicket.assignedTo || 'Unassigned'}
+            </ListGroup.Item>
+            <ListGroup.Item>
+              <strong>Created At:</strong>{' '}
+              {new Date(selectedTicket.created_at).toLocaleString()}
+            </ListGroup.Item>
+          </ListGroup>
+
+          {/* Screenshots */}
+          {selectedTicket.screenshots?.length > 0 && (
+            <div className="mt-4">
+              <strong>Screenshots:</strong>
+              <div className="d-flex flex-wrap gap-2 mt-2">
+                {selectedTicket.screenshots.map((src, idx) => {
+                  const url = src.startsWith('http')
+                    ? src
+                    : `${axios.defaults.baseURL}${src}`;
+                  return (
+                    <Image
+                      key={idx}
+                      src={url}
+                      thumbnail
+                      style={{ maxWidth: '150px', cursor: 'pointer' }}
+                      onClick={() => window.open(url, '_blank')}
+                    />
+                  );
+                })}
+              </div>
+            </div>
+          )}
+        </Card.Body>
+      </Card>
+    )}
+  </Modal.Body>
+
+  <Modal.Footer>
+    <Button variant="secondary" onClick={() => setShowModal(false)}>
+      Close
+    </Button>
+  </Modal.Footer>
+</Modal>
+
 
 {/* Response Modal */}
 <Modal
@@ -483,36 +531,36 @@ export default function AdminPanel({ role }) {
       />
     </Form.Group>
   </Modal.Body>
- <Modal.Footer>
- <Button
-  variant="success"
-  onClick={async () => {
-    await resolveTicket(selectedTicket);
-    setShowResponseModal(false);
-  }}
->
-  Resolve Ticket
-</Button>
+  <Modal.Footer>
+    <Button
+      variant="success"
+      onClick={async () => {
+        await resolveTicket(selectedTicket);
+        setShowResponseModal(false);
+      }}
+    >
+      Resolve Ticket
+    </Button>
 
-  <Button
-  variant="danger"
-  onClick={async () => {
-    console.log("Close clicked:", selectedTicket?.id);
-    await archiveTicket(selectedTicket);
-    setShowResponseModal(false);
-  }}
->
-  Close Ticket
-</Button>
+    <Button
+      variant="danger"
+      onClick={async () => {
+        console.log("Close clicked:", selectedTicket?.id);
+        await archiveTicket(selectedTicket);
+        setShowResponseModal(false);
+      }}
+    >
+      Close Ticket
+    </Button>
 
-  <Button variant="secondary" className="ms-2" onClick={() => setShowResponseModal(false)}>
-    Cancel
-  </Button>
-</Modal.Footer>
-
+    <Button variant="secondary" className="ms-2" onClick={() => setShowResponseModal(false)}>
+      Cancel
+    </Button>
+  </Modal.Footer>
 </Modal>
 
       </div>
     </div>
   );
 }
+

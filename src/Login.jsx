@@ -22,6 +22,9 @@ function Login({ setIsAuthenticated, setRole }) {
   const [registerPassword, setRegisterPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const { reloadTickets } = useTickets();
+  const [registerSuccess, setRegisterSuccess] = useState(false);
+  const [registerError, setRegisterError]     = useState('');
+
 
 
 
@@ -90,30 +93,50 @@ localStorage.setItem('company', userCompany);
 
 
   const handleRegister = async (e) => {
-    e.preventDefault();
-  
-    if (registerPassword !== confirmPassword) {
-      alert("Passwords do not match");
-      return;
-    }
-  
-    const payload = {
-      first_name: firstName,
-      last_name: lastName,
-      email: registerEmail,
-      company: company,
-      password: registerPassword
-    };
-  
-    try {
-      const res = await axios.post(`${API_BASE}/register`, payload);
-      alert(res.data.message || 'User registered successfully!');
-      setShowRegister(false);
-    } catch (err) {
-      console.error(err);
-      alert('Registration failed: ' + (err.response?.data?.detail || 'Unknown error'));
-    }
+  e.preventDefault();
+  setRegisterError('');
+  setRegisterSuccess(false);
+
+  if (registerPassword !== confirmPassword) {
+    setRegisterError("Passwords do not match");
+    return;
+  }
+
+  const payload = {
+    first_name: firstName,
+    last_name:  lastName,
+    email:      registerEmail,
+    company:    company,
+    password:   registerPassword,
+    // no send_welcome_email here, defaults to false
   };
+
+  try {
+    const res = await axios.post(`${API_BASE}/register`, payload);
+    if (res.status === 200) {
+      setRegisterSuccess(res.data.message || 'Registered successfully!');
+      setTimeout(() => {
+        setShowRegister(false);
+        setRegisterSuccess(false);
+      }, 2000);
+    }
+
+
+
+
+    // clear form fields
+    setFirstName('');
+    setLastName('');
+    setRegisterEmail('');
+    setCompany('');
+    setRegisterPassword('');
+    setConfirmPassword('');
+    // keep the modal open so they see the message
+  } catch (err) {
+    setRegisterError(err.response?.data?.detail || 'Registration failed');
+  }
+};
+
   
   
   const logos = [
@@ -302,6 +325,16 @@ localStorage.setItem('company', userCompany);
               <h3 className="mb-4 text-center" style={{ color: darkMode ? 'white' : 'black', fontWeight: 'bold', opacity: 1 }}>
                 Register
               </h3>
+              {registerError && (
+                <Alert variant="danger" className="mb-3">
+                  {registerError}
+                </Alert>
+              )}
+              {registerSuccess && (
+                <Alert variant="success" className="mb-3">
+                  {registerSuccess}
+                </Alert>
+              )}
               <Form onSubmit={handleRegister}>
                 <Form.Group className="mb-3">
                   <Form.Label style={{ color: darkMode ? 'white' : 'black' }}>First Name</Form.Label>
