@@ -1,9 +1,26 @@
 // src/TicketBoard.jsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Button, Card, Modal, Form, Row, Col, Toast, ToastContainer } from 'react-bootstrap';
+import { Button, Card, Modal, Form, Row, Col, Toast, ToastContainer, Badge } from 'react-bootstrap';
 import { useTickets } from './TicketContext';
 import { useLocation, useNavigate } from 'react-router-dom';
 import axios from 'axios';
+import { Typeahead } from 'react-bootstrap-typeahead';
+import 'react-bootstrap-typeahead/css/Typeahead.min.css';
+
+
+
+
+const STATUS_COLORS = {
+  Open:        'primary',
+  'In Progress':'warning',
+  Resolved:    'success',
+};
+const PRIORITY_COLORS = {
+  High:   'danger',
+  Medium: 'warning',
+  Low:    'secondary',
+};
+
 
 // 👉 Tell axios to send requests to your backend API instead of the React dev server
 axios.defaults.baseURL = 'https://ticketing-api-z0gp.onrender.com';
@@ -32,6 +49,10 @@ function TicketBoard() {
   const { search }  = useLocation();
   const params      = new URLSearchParams(search);
   const userEmail   = params.get("user_email") || me;
+  const [searchTerm, setSearchTerm] = useState("");
+  const [activeTab, setActiveTab] = useState('Open');
+
+
 
   
   const {
@@ -130,7 +151,6 @@ console.log("📝 company:", company, "isSpecial:", isSpecial);
 const INITIAL_FORM = {
   requestedBy:   me,
   subject: '',
-  additionalPeople: '',
   msiLocation: '',
   onSiteLocation: '',
   helpType: '',
@@ -157,6 +177,7 @@ const INITIAL_FORM = {
   rensa: [
     { startDate: '', lastName: '', firstName: '', aident: '' }   // the first person
   ],
+  ccEmails: [],
 
 };
 
@@ -325,63 +346,90 @@ const removeScreenshot = (idxToRemove) => {
 
 
       <h3 className="fw-bold mb-3">My Tickets</h3>
-      <Row>
-        {['Open', 'In Progress', 'Resolved'].map(status => (
-          <Col key={status}>
-            <Card className="mb-4">
-              <Card.Body>
-                <Card.Title>{status}</Card.Title>
-                {tickets[status.toLowerCase()]?.filter(t => !t.archived).length === 0 ? (
-                  <div className={`no-tickets-msg ${darkMode ? 'text-white' : 'text-muted'}`}>
-                    No tickets found
+<Row>
+  <Form.Control
+    type="search"
+    placeholder="Search tickets..."
+    value={searchTerm}
+    onChange={e => setSearchTerm(e.target.value)}
+    className="mb-3"
+  />
+  
+  {['Open', 'In Progress', 'Resolved'].map(status => (
+    <Col key={status}>
+      <Card className="mb-4">
+        <Card.Body>
+          <Card.Title>{status}</Card.Title>
+          {tickets[status.toLowerCase()]
+            .filter(ticket => !ticket.archived)
+            .filter(ticket => {
+              const txt = (ticket.title + " " + ticket.description).toLowerCase();
+              return txt.includes(searchTerm.toLowerCase());
+            })
+            .map(ticket => (
+              <Card
+                key={ticket.id}
+                className="mb-3 shadow-sm"
+                style={{
+                  // left stripe color = priority
+                  borderLeft: `4px solid var(--bs-${PRIORITY_COLORS[ticket.priority]})`
+                }}
+              >
+                <Card.Body>
+                  <Card.Subtitle className="fw-bold d-flex align-items-center">
+                    {ticket.title}{' '}
+                    <Badge
+                      bg={ticket.priority === 'High' ? 'danger' : 'secondary'}
+                      className="me-2"
+                    >
+                      {ticket.priority}
+                    </Badge>
+                    <Badge bg={STATUS_COLORS[ticket.status]}>
+                      {ticket.status}
+                    </Badge>
+                  </Card.Subtitle>
+                  <Card.Text className="mb-2 text-muted">
+                    {ticket.description}
+                  </Card.Text>
+                  <Card.Text className="small">
+                    👤 Submitted by: {ticket.submittedBy}<br />
+                    Updated: {fmtDate(ticket.updated_at || ticket.updated)}<br />
+                    Created: {fmtDate(ticket.created_at || ticket.created)}
+                  </Card.Text>
+                  <div className="d-flex gap-2">
+                    <Button
+                      variant="outline-primary"
+                      size="sm"
+                      onClick={() => { setSelectedTicket(ticket); setShowViewModal(true); }}
+                    >
+                      👁 View
+                    </Button>
+                    <Button
+                      variant="outline-secondary"
+                      size="sm"
+                      onClick={() => handleEditClick(ticket)}
+                    >
+                      ✏ Edit
+                    </Button>
+                    {(role === 'user' || role === 'manager') && (
+                      <Button
+                        variant="outline-danger"
+                        size="sm"
+                        onClick={() => cancelTicket(ticket.id)}
+                      >
+                        🗑 Cancel
+                      </Button>
+                    )}
                   </div>
-                ) : (
-                  tickets[status.toLowerCase()]
-                    .filter(ticket => !ticket.archived)
-                    .map((ticket, idx) => (
-                      <Card key={ticket.id} className="mb-3 shadow-sm">
-                        <Card.Body>
-                          <Card.Subtitle className="fw-bold">{ticket.title}</Card.Subtitle>
-                          <Card.Text className="mb-2 text-muted">{ticket.description}</Card.Text>
-                          <Card.Text className="small">
-                            👤 Submitted by: {ticket.submittedBy}<br />
-                            Updated: {fmtDate(ticket.updated_at || ticket.updated)}<br />
-                            Created: {fmtDate(ticket.created_at || ticket.created)}
-                          </Card.Text>
-                          <div className="d-flex gap-2">
-                            <Button
-                              variant="outline-primary"
-                              size="sm"
-                              onClick={() => { setSelectedTicket(ticket); setShowViewModal(true); }}
-                            >
-                              👁 View
-                            </Button>
-                            <Button
-                              variant="outline-secondary"
-                              size="sm"
-                              onClick={() => handleEditClick(ticket)}
-                            >
-                              ✏ Edit
-                            </Button>
-                            {(role === 'user' || role === 'manager') && (
-                            <Button
-                              variant="outline-danger"
-                              size="sm"
-                              onClick={() => cancelTicket(ticket.id)}
-                            >
-                              🗑 Cancel
-                            </Button>
-                            )}
-                          </div>
-                        </Card.Body>
-                      </Card>
-                    ))
-                )}
-              </Card.Body>
-            </Card>
-          </Col>
-        ))}
-      </Row>
+                </Card.Body>
+              </Card>
+            ))}
+        </Card.Body>
+      </Card>
+    </Col>
+  ))}
+</Row>
+
 
       {/* Submit Ticket Modal */}
 <Modal
@@ -402,8 +450,16 @@ const removeScreenshot = (idxToRemove) => {
     // 1) build a FormData object
     const fd = new FormData();
     fd.append('title', form.subject);
+// 👉 turn the chips into a single comma‑separated string
+if (form.ccEmails.length) {
+  fd.append('cc_email', form.ccEmails.join(','));
+}
+
+
     // 📝 build the description
 let desc = form.details;
+
+
 
 /* If this ticket is “Start Date (Rensa)”, build a header for
    every person the user added */
@@ -423,17 +479,15 @@ if (form.category === 'Start Date (Rensa)') {
 
 fd.append('description', desc);
 
-    fd.append('submitted_by', me);
-    fd.append('status', 'Open');
-    fd.append('priority', 'Low');
-    fd.append('archived', 'false');
-    fd.append('location', form.msiLocation || 'Corporate');
-    if (form.additionalPeople) {
-      fd.append('cc_email', form.additionalPeople);
-      fd.append('help_type', form.helpType);   // new
-fd.append('category',  form.category);   // new
+fd.append('submitted_by', me);
+    fd.append('status',     'Open');
+    fd.append('priority',   'Low');
+    fd.append('archived',   'false');
+    fd.append('location',   form.msiLocation || 'Corporate');
 
-    }
+    fd.append('help_type',  form.helpType);
+    fd.append('category',   form.category);
+
     // 2) append each screenshot
     form.screenshots.forEach(file => fd.append('screenshots', file));
     // 3) send as multipart/form-data
@@ -470,16 +524,25 @@ form.screenshots.forEach(file => URL.revokeObjectURL(file));
       />
     </Form.Group>
 
-    {/* CC Emails */}
-    <Form.Group className="mb-3">
-      <Form.Label>What email do you want to be cc'd?</Form.Label>
-      <Form.Control
-        type="text"
-        name="additionalPeople"
-        value={form.additionalPeople}
-        onChange={handleFormChange}
-      />
-    </Form.Group>
+    {/* CC – add one or more addresses */}
+<Form.Group className="mb-3">
+  <Form.Label>CC (one or more emails)</Form.Label>
+
+  <Typeahead
+    id="ccEmailInputSpecial"
+    multiple           // lets you add many
+    allowNew   
+    options={[]}
+    newSelectionPrefix="Add: "
+    placeholder="Type address and hit Enter…"
+    selected={form.ccEmails}                       // current chips
+    onChange={sel =>                               // sel is an array
+      setForm(prev => ({ ...prev, ccEmails: sel }))
+    }
+  />
+</Form.Group>
+
+
 
     {/* Location (always Corporate) */}
     <Form.Group className="mb-3">
@@ -563,16 +626,24 @@ form.screenshots.forEach(file => URL.revokeObjectURL(file));
       />
     </Form.Group>
 
-    {/* CC Emails */}
-    <Form.Group className="mb-3">
-      <Form.Label>What email do you want to be cc'd?</Form.Label>
-      <Form.Control
-        type="text"
-        name="additionalPeople"
-        value={form.additionalPeople}
-        onChange={handleFormChange}
-      />
-    </Form.Group>
+    {/* CC – add one or more addresses */}
+<Form.Group className="mb-3">
+  <Form.Label>CC (one or more emails)</Form.Label>
+
+  <Typeahead
+    id="ccEmailInputRegular"
+    multiple            // lets you add many
+    allowNew         
+    options={[]}    
+    newSelectionPrefix="Add: "
+    placeholder="Type address and hit Enter…"
+    selected={form.ccEmails}                 // current chips
+    onChange={sel =>                         // sel = array of strings
+      setForm(prev => ({ ...prev, ccEmails: sel }))
+    }
+  />
+</Form.Group>
+
 
     {/* MSI Location */}
     <Form.Group className="mb-3">
@@ -581,7 +652,7 @@ form.screenshots.forEach(file => URL.revokeObjectURL(file));
         name="msiLocation"
         value={form.msiLocation}
         onChange={handleFormChange}
-        required
+        
       >
         <option value="">Select…</option>
         {msiLocations.map(loc => (
@@ -661,7 +732,7 @@ form.screenshots.forEach(file => URL.revokeObjectURL(file));
 
         {/* Start Date */}
         <Form.Group className="mb-2">
-          <Form.Label>Start Date (YYYY‑MM‑DD)</Form.Label>
+          <Form.Label>Start Date </Form.Label>
           <Form.Control
             type="date"
             value={p.startDate}
@@ -734,7 +805,6 @@ form.screenshots.forEach(file => URL.revokeObjectURL(file));
         name="details"
         value={form.details}
         onChange={handleFormChange}
-        required
       />
     </Form.Group>
 

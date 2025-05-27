@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Image, Card, ListGroup, Form, Table, Modal, Button, Row, Col, Badge } from 'react-bootstrap';
 import { useTickets } from './TicketContext';
 import { useNavigate, useLocation } from 'react-router-dom';
@@ -6,6 +6,10 @@ import { Moon, Sun, EyeFill } from 'react-bootstrap-icons';
 import axios from 'axios';
 
 const API_BASE = "https://ticketing-api-z0gp.onrender.com";
+
+// Notification sound
+const notificationSound = new Audio('/static/sounds/notification.mp3');
+
 
 
 const statuses   = ["Open", "In Progress", "Resolved", "Closed"];
@@ -29,6 +33,8 @@ export default function AdminPanel({ role }) {
 
   
 
+  
+
   // Filter state
   const [filterStatus,   setFilterStatus]   = useState("");
   const [filterPriority, setFilterPriority] = useState("");
@@ -43,26 +49,70 @@ export default function AdminPanel({ role }) {
   const [showCompleted, setShowCompleted] = useState(false);
   const [completedTickets, setCompletedTickets] = useState([]);
   // — high‑priority confirmation —
-const [showHighModal,     setShowHighModal]     = useState(false); // popup flag
-const [pendingHighTicket, setPendingHighTicket] = useState(null);  // ticket object
+  const [showHighModal,     setShowHighModal]     = useState(false); // popup flag
+  const [pendingHighTicket, setPendingHighTicket] = useState(null);  // ticket object
 
+  const prevCountRef = useRef(0);
+  const socketRef = useRef(null);
+
+  
+  
   
 
   // Fetch tickets (active vs archived)
   useEffect(() => {
-    if (role === 'admin' || role === 'manager') {
-      axios
-        .get(`${API_BASE}/tickets?archived=${showArchived}`)
-        .then(resp => {
-          const mapped = resp.data.map(t => ({
-            ...t,
-            assignedTo: t.assigned_to
-          }));
-          setAllTickets(mapped);
-        })
-        .catch(console.error);
+  if (role !== 'admin' && role !== 'manager') return;
+
+  const loadTickets = async () => {
+    try {
+      const resp = await axios.get(`${API_BASE}/tickets?archived=${showArchived}`);
+      const mapped = resp.data.map(t => ({
+        ...t,
+        assignedTo: t.assigned_to
+      }));
+
+      // Play sound if count increases
+      if (prevCountRef.current > 0 && mapped.length > prevCountRef.current) {
+        notificationSound.play().catch(() => {});
+      }
+      prevCountRef.current = mapped.length;
+
+      setAllTickets(mapped);
+    } catch (err) {
+      console.error(err);
     }
-  }, [role, showArchived]);
+  };
+
+  // Initial load + poll every 15s
+  loadTickets();
+  const intervalId = setInterval(loadTickets, 15000);
+  return () => clearInterval(intervalId);
+}, [role, showArchived]);
+
+useEffect(() => {
+  // Open WebSocket connection
+  const ws = new WebSocket('wss://ticketing-api-z0gp.onrender.com/ws/tickets');
+  socketRef.current = ws;
+
+  // When a new-ticket event arrives...
+  ws.onmessage = (event) => {
+    try {
+      const msg = JSON.parse(event.data);
+      if (msg.event === 'new_ticket') {
+        // Play the notification immediately
+        notificationSound.play().catch(() => {});
+        // Optionally prepend the new ticket to your list:
+        setAllTickets(prev => [msg.data, ...prev]);
+      }
+    } catch (err) {
+      console.error('WS parse error', err);
+    }
+  };
+
+  // Clean up on unmount
+  return () => ws.close();
+}, []);  // run once on mount
+
 
   // ② fetch admins (runs once on mount—but we’ll also call it after corp-register)
   const fetchAdmins = () => {

@@ -152,6 +152,12 @@ localStorage.setItem('company', userCompany);
     document.body.classList.toggle('dark', isDark);
   }, []);
   
+  // Prevent default and navigate to Change Password page
+const handleForgot = (e) => {
+  e.preventDefault();
+  navigate(`/change-password?email=${encodeURIComponent(loginEmail)}`);
+};
+
   
   return (
     <div
@@ -265,10 +271,11 @@ localStorage.setItem('company', userCompany);
                     className={darkMode ? 'text-white' : ''}
                   />
                   <a
-                    href="#"
+                    href={`/change-password?email=${encodeURIComponent(loginEmail)}`}
+                    onClick={handleForgot}
                     style={{ color: darkMode ? 'white' : '#6c757d', textDecoration: 'none' }}
                   >
-                    Forgot password?
+                   Forgot password?
                   </a>
                 </Form.Group>
 

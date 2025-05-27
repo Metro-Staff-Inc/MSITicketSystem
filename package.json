@@ -18,6 +18,7 @@
     "react": "^19.0.0",
     "react-bootstrap": "^2.10.9",
     "react-bootstrap-icons": "^1.11.5",
+    "react-bootstrap-typeahead": "^6.4.1",
     "react-chartjs-2": "^5.3.0",
     "react-dom": "^19.0.0",
     "react-router-dom": "^7.5.2"
