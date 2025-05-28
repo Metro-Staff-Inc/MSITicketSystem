@@ -186,3 +186,64 @@ body.dark-mode .filter-row {
     padding-right: 1rem !important;
   }
 }
+/* === Clean up AdminPanel table === */
+.table th,
+.table td {
+  vertical-align: middle;
+  padding: 0.75rem;
+  border-color: #dee2e6;
+  border-width: 1px;
+}
+
+.table select,
+.table button {
+  font-size: 0.85rem;
+  padding: 0.25rem 0.5rem;
+  border-radius: 8px;
+}
+
+.table td {
+  white-space: nowrap;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  max-width: 200px;
+}
+
+.table .form-select,
+.table .btn {
+  box-shadow: none;
+}
+
+/* === Clean dropdowns in AdminPanel table === */
+.table .form-select {
+  padding: 0.25rem 0.5rem;
+  font-size: 0.85rem;
+  border: 1px solid #ccc;
+  border-radius: 6px;
+  background-color: #f8f9fa;
+  transition: background-color 0.2s, border-color 0.2s;
+}
+
+.table .form-select:focus {
+  border-color: #86b7fe;
+  outline: none;
+  background-color: #fff;
+}
+.form-select-custom {
+  border: none;
+  border-radius: 8px;
+  padding: 6px 10px;
+  font-weight: 500;
+  transition: all 0.2s ease-in-out;
+  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.form-select-custom:focus {
+  outline: none;
+  box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.4);
+}
+
+.form-select-custom option {
+  font-weight: 400;
+}
+

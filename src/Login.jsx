@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from 'react';
 import { Form, Button, Card, Container, InputGroup, Alert } from 'react-bootstrap';
 import { Moon, Sun, Eye, EyeSlash } from 'react-bootstrap-icons';
-import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
 import { useTickets } from './TicketContext';
+import { useNavigate, Link } from 'react-router-dom';
+
 
 const API_BASE = "https://ticketing-api-z0gp.onrender.com";
 
@@ -152,11 +153,7 @@ localStorage.setItem('company', userCompany);
     document.body.classList.toggle('dark', isDark);
   }, []);
   
-  // Prevent default and navigate to Change Password page
-const handleForgot = (e) => {
-  e.preventDefault();
-  navigate(`/change-password?email=${encodeURIComponent(loginEmail)}`);
-};
+  
 
   
   return (
@@ -270,13 +267,12 @@ const handleForgot = (e) => {
                     label="Remember me"
                     className={darkMode ? 'text-white' : ''}
                   />
-                  <a
-                    href={`/change-password?email=${encodeURIComponent(loginEmail)}`}
-                    onClick={handleForgot}
+                  <Link
+                    to="/forgot-password"
                     style={{ color: darkMode ? 'white' : '#6c757d', textDecoration: 'none' }}
                   >
                    Forgot password?
-                  </a>
+                  </Link>
                 </Form.Group>
 
                 <div className="d-grid gap-2">

@@ -62,14 +62,13 @@ export default function ForgotPassword() {
           />
         </div>
 
-        {/* Buttons wrapped to appear side-by-side */}
-        <div className="d-grid gap-2 mt-3">
-          <button type="submit" className="btn btn-primary">
+                <div className="mt-4 text-center">
+          <button type="submit" className="btn btn-primary me-2">
             Send reset link
           </button>
           <button
             type="button"
-            className="btn btn-secondary"
+            className="btn btn-outline-secondary"
             onClick={() => navigate("/login")}
           >
             Back

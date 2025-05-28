@@ -8,6 +8,9 @@ import Login from './Login';
 import ChangePassword from './ChangePassword';
 import WelcomeSplash from './WelcomeSplash';
 import TicketDetail from './TicketDetail';
+import ForgotPassword from './ForgotPassword';
+import { BrowserRouter } from 'react-router-dom'; 
+
 
 
 function App() {
@@ -37,6 +40,9 @@ function App() {
     <div className="min-h-screen transition-colors duration-300">
       <main className="px-6 sm:px-10 pb-10">
   <Routes>
+    {/* Forgot Password page */}
+    <Route path="/forgot-password" element={<ForgotPassword />} />
+
     {/* Login */}
     <Route
       path="/login"
@@ -104,6 +110,7 @@ function App() {
   element={<TicketDetail />}
 />
 
+
     {/* Catch‐all: redirect based on auth */}
     <Route
       path="*"
@@ -121,5 +128,6 @@ function App() {
     </div>
   );
 }
+  
 
 export default App;

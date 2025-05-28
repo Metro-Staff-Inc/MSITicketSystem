@@ -67,9 +67,13 @@ export default function AdminPanel({ role }) {
     try {
       const resp = await axios.get(`${API_BASE}/tickets?archived=${showArchived}`);
       const mapped = resp.data.map(t => ({
-        ...t,
-        assignedTo: t.assigned_to
-      }));
+  ...t,
+  assignedTo: t.assigned_to,
+  submitted_first_name: t.submitted_first_name || t.submitted_by_first_name || "",
+  submitted_last_name: t.submitted_last_name || t.submitted_by_last_name || "",
+  customer_impacted: t.customer_impacted || false,
+}));
+
 
       // Play sound if count increases
       if (prevCountRef.current > 0 && mapped.length > prevCountRef.current) {
@@ -249,11 +253,15 @@ useEffect(() => {
 
   // — 3. “Submitted By” search (case‑insensitive “contains”) —
   if (
-    filterUser &&
-    !t.submitted_by.toLowerCase().includes(filterUser.toLowerCase())
-  ) {
-    return false;
-  }
+  filterUser &&
+  !(
+    (t.submitted_by && t.submitted_by.toLowerCase().includes(filterUser.toLowerCase())) ||
+    (t.submitted_by_name && t.submitted_by_name.toLowerCase().includes(filterUser.toLowerCase()))
+  )
+) {
+  return false;
+}
+
 
   // — 4. Location filter — NOW smart/contains
 if (
@@ -351,9 +359,11 @@ if (
 <Row className="mb-4 gx-3">
   <Col md={2}>
     <Form.Select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}>
-      <option value="">All Statuses</option>
-      {statuses.map(s => <option key={s} value={s}>{s}</option>)}
-    </Form.Select>
+  <option value="">All Statuses</option>
+  {statuses
+    .filter(s => s === 'Open' || s === 'In Progress')
+    .map(s => <option key={s} value={s}>{s}</option>)}
+</Form.Select>
   </Col>
   <Col md={2}>
     <Form.Select value={filterPriority} onChange={e => setFilterPriority(e.target.value)}>
@@ -375,18 +385,28 @@ if (
   </Col>
   {/* Location filter */}
   <Col md={2}>
-    <Form.Control
-      type="text"
-      list="location-list"
-      value={filterLocation}
-      onChange={e => setFilterLocation(e.target.value)}
-      placeholder="Filter by location…"
-    />
-    <datalist id="location-list">
-      {uniqueLocations.map(loc => (
-        <option key={loc} value={loc} />
-      ))}
-    </datalist>
+    <Form.Select
+  value={filterLocation}
+  onChange={e => setFilterLocation(e.target.value)}
+>
+  <option value="">All Locations</option>
+  {[
+    "Aurora",
+    "Bartlett",
+    "Bolingbrook",
+    "Burbank",
+    "Corporate",
+    "Elgin",
+    "Elk Grove",
+    "Palatine",
+    "Las Vegas",
+    "Melrose Park",
+    "On-Site",
+    "West Chicago"
+  ].map(loc => (
+    <option key={loc} value={loc}>{loc}</option>
+  ))}
+</Form.Select>
   </Col>
   <Col md={4} className="d-flex justify-content-end gap-2">
     <Button
@@ -406,7 +426,7 @@ if (
 
 
         {/* table */}
-        <Table striped bordered hover responsive variant={darkMode ? "dark" : "light"}>
+        <Table striped bordered hover responsive variant={darkMode ? "dark" : "light"} className="table">
           <thead>
             <tr>
               <th><Form.Check type="checkbox" disabled /></th>
@@ -414,6 +434,7 @@ if (
               <th>Description</th>
               <th>Status</th>
               <th>Priority</th>
+              <th>Customer Impacted?</th>
               <th>Submitted By</th>
               <th>Location</th>
               <th>Assigned To</th>
@@ -422,97 +443,103 @@ if (
             </tr>
           </thead>
           <tbody>
-            {filteredTickets.map(t => (
-              <tr key={t.id}>
-                <td>
-                  <Form.Check
-                    type="checkbox"
-                    checked={selectedIds.includes(t.id)}
-                    onChange={() => toggleSelect(t.id)}
-                    disabled={role === 'manager'}
-                  />
-                </td>
-                <td>{t.title}</td>
-                <td>{t.description}</td>
-                <td>
-                  {t.archived ? (
-                    <Badge bg="secondary">Canceled</Badge>
-                  ) : (
-                  <Form.Select
-                    value={t.status}
-                    onChange={e => handleStatusChange(t, e.target.value)}
-                    disabled={role === 'manager'}
-                    className={`text-white ${
-                      t.status === 'Open'
-                        ? 'bg-primary border-3 border-info shadow-sm'
-                        : t.status === 'In Progress'
-                          ? 'bg-warning text-dark'
-                          : 'bg-success'
-                    }`}
-                    
-                  >
-                    {statuses.map(s => <option key={s} value={s}>{s}</option>)}
-                  </Form.Select>
-                 )} 
-                </td>
-                <td>
-                  <Form.Select
-                    value={t.priority}
-                    onChange={e => handlePriorityChange(t, e.target.value)}
-                    disabled={role === 'manager'}
-                    className={`text-white ${
-                      t.priority === 'High'
-                        ? 'bg-danger'
-                        : t.priority === 'Medium'
-                          ? 'bg-warning text-dark'
-                          : 'bg-secondary'
-                    }`}
-                  >
-                    {priorities.map(p => <option key={p} value={p}>{p}</option>)}
-                  </Form.Select>
-                </td>
-                <td>{t.submitted_by}</td>
-                <td>{t.location || '—'}</td>
-                <td>
-                  <Form.Select
-                    value={t.assignedTo || ''}
-                    onChange={e => handleAssignChange(t, e.target.value)}
-                    disabled={role === 'manager'}
-                  >
-                    <option value="">Unassigned</option>
-                    {adminUsers.map(u => (
-                      <option key={u.email} value={u.email}>
-                        {u.first_name} {u.last_name}
-                      </option>
-                    ))}
-                  </Form.Select>
-                </td>
-                <td>{new Date(t.created_at).toLocaleString()}</td>
-                <td>
-                  <Button
-                    size="sm"
-                    variant={darkMode ? "light" : "outline-primary"}
-                    onClick={() => { setSelectedTicket(t); setShowModal(true); }}
-                  >
-                    <EyeFill />
-                  </Button>
-                  <Button
+  {filteredTickets.map(t => (
+    <tr key={t.id}>
+      <td>
+        <Form.Check
+          type="checkbox"
+          checked={selectedIds.includes(t.id)}
+          onChange={() => toggleSelect(t.id)}
+          disabled={role === 'manager'}
+        />
+      </td>
+      <td>{t.title}</td>
+      <td
+        style={{
+          maxWidth: '150px',
+          overflow: 'hidden',
+          textOverflow: 'ellipsis',
+          whiteSpace: 'nowrap'
+        }}
+        title={t.description}
+      >
+        {t.description}
+      </td>
+      <td>
+        <Form.Select
   size="sm"
-  variant="outline-secondary"
-  onClick={() => {
-    setSelectedTicket(t);
-    setShowResponseModal(true);
-  }}
-  className="ms-2"
+  value={t.status}
+  onChange={e => handleStatusChange(t, e.target.value)}
+  disabled={role === 'manager'}
+  className={
+    t.status === 'Open'
+      ? 'bg-primary text-white'
+      : t.status === 'In Progress'
+      ? 'bg-warning text-dark'
+      : 'bg-secondary text-white'
+  }
 >
-  💬 Respond
-</Button>
-
-                </td>
-              </tr>
-            ))}
-          </tbody>
-        </Table>
+  {statuses
+    .filter(s => s === 'Open' || s === 'In Progress') // 🧹 only include valid options
+    .map(s => (
+      <option key={s} value={s}>
+        {s}
+      </option>
+    ))}
+</Form.Select>
+      </td>
+      <td>
+        <Form.Select
+  size="sm"
+  value={t.priority}
+  onChange={e => handlePriorityChange(t, e.target.value)}
+  disabled={role === 'manager'}
+  className={
+    t.priority === 'High'
+      ? 'bg-danger text-white'
+      : t.priority === 'Medium'
+      ? 'bg-warning text-dark'
+      : 'bg-secondary text-white'
+  }
+>
+          {priorities.map(p => (
+            <option key={p} value={p}>
+              {p}
+            </option>
+          ))}
+        </Form.Select>
+      </td>
+      <td>{t.customer_impacted ? "Yes" : "No"}</td>
+      <td>{t.submitted_by_name || t.submitted_by}</td>
+      <td>{t.location || '—'}</td>
+      <td>{t.assignedTo || 'Unassigned'}</td>
+      <td>{new Date(t.created_at).toLocaleString()}</td>
+      <td className="d-flex gap-1">
+        <Button
+          variant="info"
+          size="sm"
+          onClick={() => {
+            setSelectedTicket(t);
+            setShowModal(true);
+          }}
+        >
+          <EyeFill />
+        </Button>
+        <Button
+    variant="success"
+    size="sm"
+    onClick={() => {
+      setSelectedTicket(t);
+      setShowResponseModal(true);
+    }}
+  >
+    💬
+  </Button>
+</td>
+    </tr>
+  ))}
+</tbody>
+</Table>
 
        {/* View Ticket Modal */}
 <Modal show={showModal} onHide={() => setShowModal(false)}>
@@ -695,4 +722,5 @@ if (
     </div>
   );
 }
+
 
