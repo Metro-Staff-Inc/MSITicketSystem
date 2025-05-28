@@ -376,7 +376,7 @@ const removeScreenshot = (idxToRemove) => {
                 }}
               >
                 <Card.Body>
-                  <Card.Subtitle className="fw-bold d-flex align-items-center">
+                  <Card.Subtitle className="fw-bold d-flex align-items-center gap-2">
                     {ticket.title}{' '}
                     <Badge
                       bg={ticket.priority === 'High' ? 'danger' : 'secondary'}

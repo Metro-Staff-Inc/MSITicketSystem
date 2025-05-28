@@ -31,9 +31,10 @@ export default function AdminPanel({ role }) {
   const [showResponseModal, setShowResponseModal] = useState(false);
   const [responseText, setResponseText] = useState("");
 
-  
+// For confirming an assignment
+const [showAssignConfirm, setShowAssignConfirm] = useState(false);
+const [pendingAssign, setPendingAssign] = useState({ ticket: null, user: '' });
 
-  
 
   // Filter state
   const [filterStatus,   setFilterStatus]   = useState("");
@@ -228,6 +229,39 @@ useEffect(() => {
     prev.map(x => x.id === t.id ? { ...x, priority: newPriority } : x)
   );
 };
+
+const handleConfirmAssign = async () => {
+  // 1) Persist on the server
+  await updateTicket(pendingAssign.ticket.id, { assigned_to: pendingAssign.user });
+  // 2) Update local UI
+  setAllTickets(prev =>
+    prev.map(x =>
+      x.id === pendingAssign.ticket.id
+        ? { ...x, assignedTo: pendingAssign.user }
+        : x
+    )
+  );
+  // 3) Close the modal and clear pending state
+  setShowAssignConfirm(false);
+  setPendingAssign({ ticket: null, user: '' });
+};
+
+
+const handleAssignChange = async (ticket, newAssignee) => {
+  try {
+    // Persist the new assignee on the server
+    await updateTicket(ticket.id, { assigned_to: newAssignee });
+    // Update local state so the table refreshes
+    setAllTickets(prev =>
+      prev.map(x =>
+        x.id === ticket.id ? { ...x, assignedTo: newAssignee } : x
+      )
+    );
+  } catch (err) {
+    console.error("Failed to assign ticket:", err);
+  }
+};
+
 
 
   console.log(
@@ -512,7 +546,26 @@ if (
       <td>{t.customer_impacted ? "Yes" : "No"}</td>
       <td>{t.submitted_by_name || t.submitted_by}</td>
       <td>{t.location || '—'}</td>
-      <td>{t.assignedTo || 'Unassigned'}</td>
+      <td>
+  <Form.Select
+  size="sm"
+  value={t.assignedTo || ''}
+  onChange={e => {
+    setPendingAssign({ ticket: t, user: e.target.value });
+    setShowAssignConfirm(true);
+  }}
+  disabled={role === 'manager'}
+>
+  <option value="">Unassigned</option>
+  {adminUsers.map(user => (
+    <option key={user.email} value={user.email}>
+      {user.first_name} {user.last_name}
+    </option>
+  ))}
+</Form.Select>
+
+</td>
+
       <td>{new Date(t.created_at).toLocaleString()}</td>
       <td className="d-flex gap-1">
         <Button
@@ -717,6 +770,36 @@ if (
     </Button>
   </Modal.Footer>
 </Modal>
+{/* Assign-confirmation Modal */}
+<Modal
+  show={showAssignConfirm}
+  onHide={() => setShowAssignConfirm(false)}
+  centered
+>
+  <Modal.Header closeButton>
+    <Modal.Title>Confirm Assignment</Modal.Title>
+  </Modal.Header>
+  <Modal.Body>
+    Are you sure you want to assign ticket #
+    <strong>{pendingAssign.ticket?.id}</strong> to 
+    <strong>{pendingAssign.user}</strong>?
+  </Modal.Body>
+  <Modal.Footer>
+    <Button
+      variant="secondary"
+      onClick={() => setShowAssignConfirm(false)}
+    >
+      No
+    </Button>
+    <Button
+      variant="primary"
+      onClick={handleConfirmAssign}
+    >
+      Yes
+    </Button>
+  </Modal.Footer>
+</Modal>
+
 
       </div>
     </div>

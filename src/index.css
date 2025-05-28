@@ -247,3 +247,21 @@ body.dark-mode .filter-row {
   font-weight: 400;
 }
 
+/* Keep colored selects in dark mode */
+body.dark-mode select.bg-primary {
+  background-color: #0d6efd !important;
+  color: #fff !important;
+}
+body.dark-mode select.bg-warning {
+  background-color: #ffc107 !important;
+  color: #000 !important;
+}
+body.dark-mode select.bg-danger {
+  background-color: #dc3545 !important;
+  color: #fff !important;
+}
+body.dark-mode select.bg-secondary {
+  background-color: #6c757d !important;
+  color: #fff !important;
+}
+
