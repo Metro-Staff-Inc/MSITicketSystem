@@ -170,13 +170,13 @@ function AdminDashboard({ setIsAuthenticated }) {
           </Button>
         </div>
       </div>
+<StatsCards
+  openCount={openCount}
+  inProgressCount={inProgressCount}
+  resolvedCount={resolvedCount}
+  darkMode={darkMode}    // 🆕 add this line
+/>
 
-      {/* Stats */}
-      <StatsCards
-        openCount={openCount}
-        inProgressCount={inProgressCount}
-        resolvedCount={resolvedCount}
-      />
 
       {/* Chart & List */}
       <Row>

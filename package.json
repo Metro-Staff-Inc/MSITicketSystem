@@ -15,6 +15,7 @@
     "bootstrap": "^5.3.5",
     "chart.js": "^4.4.9",
     "chartjs-plugin-datalabels": "^2.2.0",
+    "nanoid": "^5.1.5",
     "react": "^19.0.0",
     "react-bootstrap": "^2.10.9",
     "react-bootstrap-icons": "^1.11.5",
