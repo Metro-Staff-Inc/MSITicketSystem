@@ -39,6 +39,7 @@ export function TicketProvider({ children }) {
   const [tickets, setTickets] = useState({ open: [], 'in progress': [], resolved: [] })
   const [archivedTickets, setArchivedTickets] = useState([])
 
+ 
   useEffect(() => {
     // 1️⃣ Who am I? (email + role from localStorage)
     const me   = localStorage.getItem('userEmail') || '';

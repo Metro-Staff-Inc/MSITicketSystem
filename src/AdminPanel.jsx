@@ -5,7 +5,12 @@ import { useNavigate, useLocation } from 'react-router-dom';
 import { Moon, Sun, EyeFill } from 'react-bootstrap-icons';
 import axios from 'axios';
 
+
+
 const API_BASE = "https://ticketing-api-z0gp.onrender.com";
+
+axios.defaults.baseURL = API_BASE;
+
 
 // Notification sound
 const notificationSound = new Audio('/static/sounds/notification.mp3');
@@ -68,12 +73,13 @@ const [pendingAssign, setPendingAssign] = useState({ ticket: null, user: '' });
     try {
       const resp = await axios.get(`${API_BASE}/tickets?archived=${showArchived}`);
       const mapped = resp.data.map(t => ({
-  ...t,
-  assignedTo: t.assigned_to,
-  submitted_first_name: t.submitted_first_name || t.submitted_by_first_name || "",
-  submitted_last_name: t.submitted_last_name || t.submitted_by_last_name || "",
-  customer_impacted: t.customer_impacted || false,
-}));
+        ...t,
+       assignedTo: t.assigned_to,
+       submitted_first_name: t.submitted_first_name || t.submitted_by_first_name || "",
+       submitted_last_name: t.submitted_last_name || t.submitted_by_last_name || "",
+       customer_impacted: t.customer_impacted || false,
+       attachments: t.attachments || [] 
+      }));
 
 
       // Play sound if count increases
@@ -93,30 +99,6 @@ const [pendingAssign, setPendingAssign] = useState({ ticket: null, user: '' });
   const intervalId = setInterval(loadTickets, 15000);
   return () => clearInterval(intervalId);
 }, [role, showArchived]);
-
-useEffect(() => {
-  // Open WebSocket connection
-  const ws = new WebSocket('wss://ticketing-api-z0gp.onrender.com/ws/tickets');
-  socketRef.current = ws;
-
-  // When a new-ticket event arrives...
-  ws.onmessage = (event) => {
-    try {
-      const msg = JSON.parse(event.data);
-      if (msg.event === 'new_ticket') {
-        // Play the notification immediately
-        notificationSound.play().catch(() => {});
-        // Optionally prepend the new ticket to your list:
-        setAllTickets(prev => [msg.data, ...prev]);
-      }
-    } catch (err) {
-      console.error('WS parse error', err);
-    }
-  };
-
-  // Clean up on unmount
-  return () => ws.close();
-}, []);  // run once on mount
 
 
   // ② fetch admins (runs once on mount—but we’ll also call it after corp-register)
@@ -510,17 +492,22 @@ if (
       ? 'bg-primary text-white'
       : t.status === 'In Progress'
       ? 'bg-warning text-dark'
-      : 'bg-secondary text-white'
+      : 'bg-success text-white'
   }
 >
   {statuses
-    .filter(s => s === 'Open' || s === 'In Progress') // 🧹 only include valid options
+    .filter(s =>
+      showCompleted
+        ? (s === 'Resolved' || s === 'Closed')
+        : (s === 'Open'     || s === 'In Progress')
+    )
     .map(s => (
       <option key={s} value={s}>
         {s}
       </option>
     ))}
 </Form.Select>
+
       </td>
       <td>
         <Form.Select
@@ -601,6 +588,7 @@ if (
   </Modal.Header>
 
   <Modal.Body>
+    {console.log("Selected Ticket Data:", selectedTicket)}
     {selectedTicket && (
       <Card>
         <Card.Body>
@@ -617,24 +605,31 @@ if (
           </Card.Title>
 
           {/* Key Details */}
-          <ListGroup variant="flush" className="mt-3">
-            <ListGroup.Item>
-              <strong>Description:</strong> {selectedTicket.description}
-            </ListGroup.Item>
-            <ListGroup.Item>
-              <strong>Priority:</strong> {selectedTicket.priority}
-            </ListGroup.Item>
-            <ListGroup.Item>
-              <strong>Submitted By:</strong> {selectedTicket.submitted_by}
-            </ListGroup.Item>
-            <ListGroup.Item>
-              <strong>Assigned To:</strong> {selectedTicket.assignedTo || 'Unassigned'}
-            </ListGroup.Item>
-            <ListGroup.Item>
-              <strong>Created At:</strong>{' '}
-              {new Date(selectedTicket.created_at).toLocaleString()}
-            </ListGroup.Item>
-          </ListGroup>
+<ListGroup variant="flush" className="mt-3">
+  <ListGroup.Item>
+    <strong>Description:</strong> {selectedTicket.description}
+  </ListGroup.Item>
+
+  {selectedTicket.response && (
+    <ListGroup.Item>
+      <strong>Response:</strong> {selectedTicket.response}
+    </ListGroup.Item>
+  )}
+
+  <ListGroup.Item>
+    <strong>Priority:</strong> {selectedTicket.priority}
+  </ListGroup.Item>
+  <ListGroup.Item>
+    <strong>Submitted By:</strong> {selectedTicket.submitted_by}
+  </ListGroup.Item>
+  <ListGroup.Item>
+    <strong>Assigned To:</strong> {selectedTicket.assignedTo || 'Unassigned'}
+  </ListGroup.Item>
+  <ListGroup.Item>
+    <strong>Created At:</strong> {new Date(selectedTicket.created_at).toLocaleString()}
+  </ListGroup.Item>
+</ListGroup>
+
 
           {/* Screenshots */}
           {selectedTicket.screenshots?.length > 0 && (
@@ -658,15 +653,34 @@ if (
               </div>
             </div>
           )}
-        </Card.Body>
+
+          {/* Attachments — Place it RIGHT BELOW Screenshots */}
+          {selectedTicket?.attachments?.length > 0 && (
+            <div className="mt-4">
+              <strong>Attachments:</strong>
+              <ListGroup>
+                {selectedTicket.attachments.map((file, idx) => (
+                  <ListGroup.Item key={idx}>
+                    <a
+                      href={encodeURI(`${axios.defaults.baseURL}${file}`)}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {file.split('/').pop()} 📎
+                    </a>
+                  </ListGroup.Item>
+                ))}
+              </ListGroup>
+            </div>
+          )}
+
+        </Card.Body> {/* Attachments are now inside Card.Body */}
       </Card>
     )}
   </Modal.Body>
 
   <Modal.Footer>
-    <Button variant="secondary" onClick={() => setShowModal(false)}>
-      Close
-    </Button>
+    <Button variant="secondary" onClick={() => setShowModal(false)}>Close</Button>
   </Modal.Footer>
 </Modal>
 
@@ -780,10 +794,11 @@ if (
     <Modal.Title>Confirm Assignment</Modal.Title>
   </Modal.Header>
   <Modal.Body>
-    Are you sure you want to assign ticket #
-    <strong>{pendingAssign.ticket?.id}</strong> to 
-    <strong>{pendingAssign.user}</strong>?
-  </Modal.Body>
+  Are you sure you want to assign ticket{' '}
+  <strong>#{pendingAssign.ticket?.id}</strong>{' '}
+  to <strong>{pendingAssign.user}</strong>?
+</Modal.Body>
+
   <Modal.Footer>
     <Button
       variant="secondary"

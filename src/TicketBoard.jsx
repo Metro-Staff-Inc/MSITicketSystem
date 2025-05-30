@@ -61,7 +61,8 @@ function TicketBoard() {
     archivedTickets,
     setArchivedTickets,
     createTicket,    
-    updateTicket,    // ← grab your helper from context
+    updateTicket,
+    reloadTickets     // ← grab your helper from context
   } = useTickets();
 
   const role = localStorage.getItem('role');
@@ -79,18 +80,20 @@ console.log("📝 company:", company, "isSpecial:", isSpecial);
 
 
   useEffect(() => {
-  // load active tickets
-  axios
-    //.get(`/tickets?user_email=${encodeURIComponent(userEmail)}&archived=false`)
-    //.then(res => setTickets(res.data))
-    //.catch(console.error);
+  // load & group active tickets
+  reloadTickets();
 
   // load archived tickets
   axios
-    .get(`/tickets?user_email=${encodeURIComponent(userEmail)}&archived=true`)
+    .get(
+      `/tickets?user_email=${encodeURIComponent(
+        userEmail
+      )}&archived=true`
+    )
     .then(res => setArchivedTickets(res.data))
     .catch(console.error);
-}, [userEmail, setTickets, setArchivedTickets]);
+}, [userEmail,]);
+
 
   const [darkMode, setDarkMode] = useState(() => {
     const storedMode = localStorage.getItem('darkMode');
@@ -114,6 +117,9 @@ console.log("📝 company:", company, "isSpecial:", isSpecial);
   const [editForm, setEditForm] = useState({ title: '', description: '' });
   const [showToast, setShowToast]       = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+
+  const [showCancelConfirm, setShowCancelConfirm] = useState(false);
+  const [pendingCancelTicket, setPendingCancelTicket] = useState(null);
 
 
 
@@ -158,6 +164,7 @@ const INITIAL_FORM = {
   details: '',
   customerImpacted: '',
   screenshots: [],
+  attachments: [],
   onboarding: {
     firstName: '',
     lastName: '',
@@ -346,88 +353,109 @@ const removeScreenshot = (idxToRemove) => {
 
 
       <h3 className="fw-bold mb-3">My Tickets</h3>
+
+{/* Search bar */}
+<Row className="mb-3">
+  <Col>
+    <Form.Control
+      type="search"
+      placeholder="Search tickets..."
+      value={searchTerm}
+      onChange={e => setSearchTerm(e.target.value)}
+    />
+  </Col>
+</Row>
+
+{/* Tickets grouped by status */}
 <Row>
-  <Form.Control
-    type="search"
-    placeholder="Search tickets..."
-    value={searchTerm}
-    onChange={e => setSearchTerm(e.target.value)}
-    className="mb-3"
-  />
-  
-  {['Open', 'In Progress', 'Resolved'].map(status => (
-    <Col key={status}>
-      <Card className="mb-4">
-        <Card.Body>
-          <Card.Title>{status}</Card.Title>
-          {tickets[status.toLowerCase()]
-            .filter(ticket => !ticket.archived)
-            .filter(ticket => {
-              const txt = (ticket.title + " " + ticket.description).toLowerCase();
-              return txt.includes(searchTerm.toLowerCase());
-            })
-            .map(ticket => (
-              <Card
-                key={ticket.id}
-                className="mb-3 shadow-sm"
-                style={{
-                  // left stripe color = priority
-                  borderLeft: `4px solid var(--bs-${PRIORITY_COLORS[ticket.priority]})`
-                }}
-              >
-                <Card.Body>
-                  <Card.Subtitle className="fw-bold d-flex align-items-center gap-2">
-                    {ticket.title}{' '}
-                    <Badge
-                      bg={ticket.priority === 'High' ? 'danger' : 'secondary'}
-                      className="me-2"
-                    >
-                      {ticket.priority}
-                    </Badge>
-                    <Badge bg={STATUS_COLORS[ticket.status]}>
-                      {ticket.status}
-                    </Badge>
-                  </Card.Subtitle>
-                  <Card.Text className="mb-2 text-muted">
-                    {ticket.description}
-                  </Card.Text>
-                  <Card.Text className="small">
-                    👤 Submitted by: {ticket.submittedBy}<br />
-                    Updated: {fmtDate(ticket.updated_at || ticket.updated)}<br />
-                    Created: {fmtDate(ticket.created_at || ticket.created)}
-                  </Card.Text>
-                  <div className="d-flex gap-2">
-                    <Button
-                      variant="outline-primary"
-                      size="sm"
-                      onClick={() => { setSelectedTicket(ticket); setShowViewModal(true); }}
-                    >
-                      👁 View
-                    </Button>
-                    <Button
-                      variant="outline-secondary"
-                      size="sm"
-                      onClick={() => handleEditClick(ticket)}
-                    >
-                      ✏ Edit
-                    </Button>
-                    {(role === 'user' || role === 'manager') && (
-                      <Button
-                        variant="outline-danger"
-                        size="sm"
-                        onClick={() => cancelTicket(ticket.id)}
+  {['Open', 'In Progress', 'Resolved'].map(status => {
+    // map the human-readable status to the key in your tickets object
+    const key = status === 'In Progress' ? 'inProgress' : status.toLowerCase();
+    // grab that array (or empty array if undefined)
+    const bucket = tickets[key] || [];
+
+    return (
+      <Col key={status}>
+        <Card className="mb-4">
+          <Card.Body>
+            <Card.Title>{status}</Card.Title>
+
+            {bucket
+              .filter(ticket => {
+                const txt = (ticket.title + ' ' + ticket.description).toLowerCase();
+                return txt.includes(searchTerm.toLowerCase());
+              })
+              .map(ticket => (
+                <Card
+                  key={ticket.id}
+                  className="mb-3 shadow-sm"
+                  style={{
+                    borderLeft: `4px solid var(--bs-${PRIORITY_COLORS[ticket.priority]})`
+                  }}
+                >
+                  <Card.Body>
+                    <Card.Subtitle className="fw-bold d-flex align-items-center gap-2">
+                      {ticket.title}{' '}
+                      <Badge
+                        bg={ticket.priority === 'High' ? 'danger' : 'secondary'}
+                        className="me-2"
                       >
-                        🗑 Cancel
+                        {ticket.priority}
+                      </Badge>
+                      <Badge bg={STATUS_COLORS[ticket.status]}>
+                        {ticket.status}
+                      </Badge>
+                    </Card.Subtitle>
+
+                    <Card.Text className="mb-2 text-muted">
+                      {ticket.description}
+                    </Card.Text>
+
+                    <Card.Text className="small">
+                      👤 Submitted by: {ticket.submittedBy}<br/>
+                      Updated: {fmtDate(ticket.updated_at || ticket.updated)}<br/>
+                      Created: {fmtDate(ticket.created_at || ticket.created)}
+                    </Card.Text>
+
+                    <div className="d-flex gap-2">
+                      <Button
+                        variant="outline-primary"
+                        size="sm"
+                        onClick={() => {
+                          setSelectedTicket(ticket);
+                          setShowViewModal(true);
+                        }}
+                      >
+                        👁 View
                       </Button>
-                    )}
-                  </div>
-                </Card.Body>
-              </Card>
-            ))}
-        </Card.Body>
-      </Card>
-    </Col>
-  ))}
+                      <Button
+                        variant="outline-secondary"
+                        size="sm"
+                        onClick={() => handleEditClick(ticket)}
+                      >
+                        ✏ Edit
+                      </Button>
+                      {(role === 'user' || role === 'manager') && (
+                        <Button
+                          variant="outline-danger"
+                          size="sm"
+                          onClick={() => {
+                            setPendingCancelTicket(ticket);
+                            setShowCancelConfirm(true);
+                          }}
+                        >
+                          🗑 Cancel
+                        </Button>
+                      )}
+                    </div>
+                  </Card.Body>
+                </Card>
+              ))}
+          </Card.Body>
+        </Card>
+      </Col>
+    );
+  })}
 </Row>
 
 
@@ -487,10 +515,18 @@ fd.append('submitted_by', me);
 
     fd.append('help_type',  form.helpType);
     fd.append('category',   form.category);
+    // Tell the API whether a customer is impacted
+fd.append(
+  'customer_impacted',
+  form.customerImpacted === 'Yes' ? 'true' : 'false'
+);
 
-    // 2) append each screenshot
-    form.screenshots.forEach(file => fd.append('screenshots', file));
-    // 3) send as multipart/form-data
+
+      // 2) append each screenshot
+  form.screenshots.forEach(file => fd.append('screenshots', file));
+ // 3) append each attachment
+ form.attachments.forEach(file => fd.append('attachments', file));
+
     try {
       await axios.post(
         '/tickets',
@@ -498,6 +534,7 @@ fd.append('submitted_by', me);
         { headers: { 'Content-Type': 'multipart/form-data' } }
       );
       setShowSubmitModal(false);
+      reloadTickets();    // ← immediately refresh the ticket list
       setForm({ ...INITIAL_FORM });      // ← resets every field
       // 🔄 reset the <input type="file"> element
 if (fileInputRef.current) fileInputRef.current.value = "";
@@ -527,20 +564,25 @@ form.screenshots.forEach(file => URL.revokeObjectURL(file));
     {/* CC – add one or more addresses */}
 <Form.Group className="mb-3">
   <Form.Label>CC (one or more emails)</Form.Label>
-
   <Typeahead
     id="ccEmailInputSpecial"
     multiple           // lets you add many
-    allowNew   
+    allowNew
     options={[]}
     newSelectionPrefix="Add: "
     placeholder="Type address and hit Enter…"
-    selected={form.ccEmails}                       // current chips
-    onChange={sel =>                               // sel is an array
-      setForm(prev => ({ ...prev, ccEmails: sel }))
+    selected={form.ccEmails}
+    onChange={sel =>
+      setForm(prev => ({
+        ...prev,
+        ccEmails: sel.map(item =>
+          typeof item === "string" ? item : item.label
+        )
+      }))
     }
   />
 </Form.Group>
+
 
 
 
@@ -631,19 +673,25 @@ form.screenshots.forEach(file => URL.revokeObjectURL(file));
   <Form.Label>CC (one or more emails)</Form.Label>
 
   <Typeahead
-    id="ccEmailInputRegular"
-    multiple            // lets you add many
-    allowNew         
-    options={[]}    
-    newSelectionPrefix="Add: "
-    placeholder="Type address and hit Enter…"
-    selected={form.ccEmails}                 // current chips
-    onChange={sel =>                         // sel = array of strings
-      setForm(prev => ({ ...prev, ccEmails: sel }))
-    }
-  />
-</Form.Group>
+  labelKey={option => option}
+  id="ccEmailInputRegular"
+  multiple
+  allowNew
+  options={[]}
+  newSelectionPrefix="Add: "
+  placeholder="Type address and hit Enter…"
+  selected={form.ccEmails}
+  onChange={sel =>
+    setForm(prev => ({
+      ...prev,
+      ccEmails: sel.map(item =>
+        typeof item === 'string' ? item : item.label
+      )
+    }))
+  }
+/>
 
+</Form.Group>
 
     {/* MSI Location */}
     <Form.Group className="mb-3">
@@ -661,16 +709,19 @@ form.screenshots.forEach(file => URL.revokeObjectURL(file));
       </Form.Select>
     </Form.Group>
 
-    {/* On‐site Location */}
-    <Form.Group className="mb-3">
-      <Form.Label>On-site Location</Form.Label>
-      <Form.Control
-        type="text"
-        name="onSiteLocation"
-        value={form.onSiteLocation}
-        onChange={handleFormChange}
-      />
-    </Form.Group>
+    {/* On‐site Location (only when MSI Location === “On-Site”) */}
+{form.msiLocation === 'On-Site' && (
+  <Form.Group className="mb-3">
+    <Form.Label>On-site Location</Form.Label>
+    <Form.Control
+      type="text"
+      name="onSiteLocation"
+      value={form.onSiteLocation}
+      onChange={handleFormChange}
+    />
+  </Form.Group>
+)}
+
 
     {/* Help Type */}
     <Form.Group className="mb-3">
@@ -834,9 +885,27 @@ form.screenshots.forEach(file => URL.revokeObjectURL(file));
         ref={fileInputRef}
       />
     </Form.Group>
+    <Form.Group className="mb-3">
+  <Form.Label>Attachments (any file types):</Form.Label>
+  <Form.Control
+    type="file"
+    name="attachments"
+    multiple
+    onChange={e => {
+      const files = Array.from(e.target.files);
+      setForm(prev => ({
+        ...prev,
+        attachments: [...prev.attachments, ...files]
+      }));
+    }}
+    ref={fileInputRef}
+  />
+</Form.Group>
+
+
+
   </>
 )}
-
 
 {form.screenshots.length > 0 && (
   <div className="mb-3 d-flex flex-wrap gap-2">
@@ -892,84 +961,232 @@ form.screenshots.forEach(file => URL.revokeObjectURL(file));
   <Modal.Header closeButton>
     <Modal.Title>View Ticket</Modal.Title>
   </Modal.Header>
+
   <Modal.Body>
     {selectedTicket && (
       <>
         <p><strong>Subject:</strong> {selectedTicket.title}</p>
         <p><strong>Description:</strong> {selectedTicket.description}</p>
-        <p><strong>Submitted by:</strong> {selectedTicket.submitted_by_name || selectedTicket.submittedBy}</p>
+        <p>
+          <strong>Submitted by:</strong>{' '}
+          {selectedTicket.submitted_by_name || selectedTicket.submittedBy}
+        </p>
         <p><strong>Status:</strong> {selectedTicket.status}</p>
         <p><strong>Priority:</strong> {selectedTicket.priority}</p>
+
         {selectedTicket.cc_email && (
-          <p><strong>CC:</strong> {selectedTicket.cc_email}</p>
-        )}
-        {selectedTicket.screenshot && (
           <p>
-            <strong>Screenshot:</strong><br/>
-            <img
-              src={selectedTicket.screenshot}
-              alt="ticket screenshot"
-              style={{ maxWidth: '100%' }}
-            />
+            <strong>CC:</strong>{' '}
+            {Array.isArray(selectedTicket.cc_email)
+              ? selectedTicket.cc_email.join(', ')
+              : selectedTicket.cc_email}
           </p>
+        )}
+
+        {/* Screenshots */}
+        {selectedTicket.screenshots?.length > 0 && (
+          <>
+            <p><strong>Screenshots:</strong></p>
+            <div className="d-flex flex-wrap gap-2 mb-3">
+              {selectedTicket.screenshots.map((file, idx) => {
+                const url = file.startsWith('http')
+                  ? file
+                  : `${axios.defaults.baseURL}${file}`;
+                return (
+                  <img
+                    key={idx}
+                    src={url}
+                    alt={`screenshot-${idx}`}
+                    style={{
+                      maxWidth: '150px',
+                      height: 'auto',
+                      objectFit: 'contain',
+                      borderRadius: 4,
+                      cursor: 'pointer'
+                    }}
+                    onClick={() => window.open(url, '_blank')}
+                  />
+                );
+              })}
+            </div>
+          </>
+        )}
+
+        {/* Attachments */}
+        {selectedTicket.attachments?.length > 0 && (
+          <>
+            <p><strong>Attachments:</strong></p>
+            <ul style={{ paddingLeft: 20 }}>
+              {selectedTicket.attachments.map((file, idx) => {
+                const url = file.startsWith('http')
+                  ? file
+                  : `${axios.defaults.baseURL}${file}`;
+                const name = file.split('/').pop();
+                return (
+                  <li key={idx}>
+                    <a
+                      href={url}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                    >
+                      {name}
+                    </a>
+                  </li>
+                );
+              })}
+            </ul>
+          </>
         )}
       </>
     )}
   </Modal.Body>
 </Modal>
 
-
       {/* Edit Modal */}
-      <Modal
-        show={showEditModal}
-        onHide={() => setShowEditModal(false)}
-        fullscreen="sm-down"
-        centered
-      >
-        <Modal.Header closeButton>
-          <Modal.Title>Edit Ticket</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          {selectedTicket && (
-            <Form
-            onSubmit={e => {
-              e.preventDefault();                       // stop page refresh
-          
-              // ⬇️ one‑liner that updates state (and DB, once you wire it)
-              updateTicket(selectedTicket.id, {
-                title:       editForm.title,
-                description: editForm.description,
-                updated_at:  new Date().toISOString(),
-              });
-          
-              setShowEditModal(false);                  // close the popup
-            }}
-          >
-          
-              
-              <Form.Group className="mb-3">
-                <Form.Label>Title</Form.Label>
-                <Form.Control
-                  value={editForm.title}
-                  onChange={e => setEditForm({ ...editForm, title: e.target.value })}
-                />
-              </Form.Group>
-              <Form.Group className="mb-3">
-                <Form.Label>Description</Form.Label>
-                <Form.Control
-                  as="textarea"
-                  rows={3}
-                  value={editForm.description}
-                  onChange={e => setEditForm({ ...editForm, description: e.target.value })}
-                />
-              </Form.Group>
-              <Button type="submit" variant="primary">
-                Save Changes
-              </Button>
-            </Form>
-          )}
-        </Modal.Body>
-      </Modal>
+      <Modal show={showEditModal} onHide={() => setShowEditModal(false)} fullscreen="sm-down" centered>
+  <Modal.Header closeButton>
+    <Modal.Title>Edit Ticket</Modal.Title>
+  </Modal.Header>
+  <Modal.Body className="p-4">
+    
+    {/* Section: Current Files */}
+    {selectedTicket && (
+      <div className="border rounded p-3 mb-4 bg-light">
+        <h5 className="fw-bold">Current Files</h5>
+        
+        {/* Current Screenshots */}
+        {selectedTicket.screenshots?.length > 0 && (
+          <div className="mb-3">
+            <Form.Label className="text-muted">Screenshots:</Form.Label>
+            <div className="d-flex flex-wrap gap-2">
+              {selectedTicket.screenshots.map((file, idx) => (
+                <img key={idx} src={file} alt={`screenshot-${idx}`} className="border rounded" style={{ width: "120px", height: "auto", objectFit: "cover" }} />
+              ))}
+            </div>
+          </div>
+        )}
+
+        {/* Current Attachments */}
+        {selectedTicket.attachments?.length > 0 && (
+          <div className="mb-3">
+            <Form.Label className="text-muted">Attachments:</Form.Label>
+            <ul className="list-unstyled">
+              {selectedTicket.attachments.map((file, idx) => (
+                <li key={idx} className="mb-2">
+                  <a href={file} target="_blank" className="btn btn-outline-primary btn-sm">📎 {file.split("/").pop()}</a>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+      </div>
+    )}
+
+    {/* Section: Upload New Files */}
+    <div className="border rounded p-3 mb-4 bg-light">
+      <h5 className="fw-bold">Upload New Files</h5>
+      
+      <Form.Group className="mb-3">
+        <Form.Label>Upload Screenshots:</Form.Label>
+        <Form.Control type="file" multiple accept="image/*" />
+      </Form.Group>
+
+      <Form.Group className="mb-3">
+        <Form.Label>Upload Attachments:</Form.Label>
+        <Form.Control type="file" multiple />
+      </Form.Group>
+    </div>
+
+    {/* Section: Edit Ticket Details */}
+    <div className="border rounded p-3 bg-light">
+      <h5 className="fw-bold">Edit Ticket Details</h5>
+
+      <Form.Group className="mb-3">
+        <Form.Label>Current Title:</Form.Label>
+        <p className="text-muted">{selectedTicket.title}</p>
+        <Form.Label>New Title:</Form.Label>
+        <Form.Control type="text" placeholder="Enter new title..." value={editForm.title} onChange={e => setEditForm({ ...editForm, title: e.target.value })} />
+      </Form.Group>
+
+      <Form.Group className="mb-3">
+        <Form.Label>Current Description:</Form.Label>
+        <p className="text-muted">{selectedTicket.description}</p>
+        <Form.Label>New Description:</Form.Label>
+        <Form.Control as="textarea" rows={3} placeholder="Enter new description..." value={editForm.description} onChange={e => setEditForm({ ...editForm, description: e.target.value })} />
+      </Form.Group>
+    </div>
+    
+    {/* Submit Button */}
+    <Button type="submit" variant="primary" className="mt-3 w-100">💾 Save Changes</Button>
+  </Modal.Body>
+</Modal>
+
+     {/* Cancel-confirmation Modal */}
+<Modal
+  show={showCancelConfirm}
+  onHide={() => {
+    setShowCancelConfirm(false);
+    setPendingCancelTicket(null);
+  }}
+  centered
+>
+  <Modal.Header closeButton>
+    <Modal.Title>Confirm Cancellation</Modal.Title>
+  </Modal.Header>
+  <Modal.Body>
+    Are you sure you want to cancel ticket #{pendingCancelTicket?.id}? This will archive the ticket.
+  </Modal.Body>
+  <Modal.Footer>
+    <Button
+      variant="secondary"
+      onClick={() => {
+        // Close the modal and clear selection
+        setShowCancelConfirm(false);
+        setPendingCancelTicket(null);
+      }}
+    >
+      No, keep it
+    </Button>
+    <Button
+      variant="danger"
+      onClick={() => {
+        // 1️⃣ Close the modal immediately
+        setShowCancelConfirm(false);
+
+        // 2️⃣ Remove from active tickets right away
+        setTickets(prev => {
+          const newBuckets = {};
+          for (const key of Object.keys(prev)) {
+            newBuckets[key] = prev[key].filter(t => t.id !== pendingCancelTicket.id);
+          }
+          return newBuckets;
+        });
+
+        // 3️⃣ Add to archived list right away
+        setArchivedTickets(prev => [
+          { ...pendingCancelTicket, archived: true, status: 'Canceled' },
+          ...prev
+        ]);
+
+        // 4️⃣ Clear pending state
+        const id = pendingCancelTicket.id;
+        setPendingCancelTicket(null);
+
+        // 5️⃣ Fire off the API call (in background)
+        cancelTicket(id).catch(err => {
+          console.error("Cancel failed:", err);
+          // If it fails, reload to stay in sync
+          reloadTickets();
+        });
+      }}
+    >
+      Yes, cancel
+    </Button>
+  </Modal.Footer>
+</Modal>
+
+
+
     </div>
   );
 }
