@@ -118,6 +118,11 @@ console.log("📝 company:", company, "isSpecial:", isSpecial);
   const [showToast, setShowToast]       = useState(false);
   const [toastMessage, setToastMessage] = useState('');
 
+  // holds the NEW files you pick while editing
+const [newScreenshots, setNewScreenshots] = useState([]);
+const [newAttachments, setNewAttachments] = useState([]);
+
+
   const [showCancelConfirm, setShowCancelConfirm] = useState(false);
   const [pendingCancelTicket, setPendingCancelTicket] = useState(null);
 
@@ -220,7 +225,15 @@ const removeRensaPerson = (prev, idx) =>
     setForm(prev => ({
       ...prev,
       screenshots: [
-        ...prev.screenshots,      // keep existing
+        ...prev.screenshots,      // keep existing screenshots
+        ...Array.from(files)      // add new ones
+      ]
+    }));
+  } else if (name === 'attachments') {
+    setForm(prev => ({
+      ...prev,
+      attachments: [
+        ...prev.attachments,      // keep existing attachments
         ...Array.from(files)      // add new ones
       ]
     }));
@@ -231,6 +244,47 @@ const removeRensaPerson = (prev, idx) =>
     }));
   }
 };
+
+const handleEditSubmit = async (e) => {
+  e.preventDefault();
+
+  try {
+    // 1) PATCH plain fields (no files)
+    await axios.patch(`/tickets/${selectedTicket.id}`, {
+      title:       editForm.title,
+      description: editForm.description
+    });
+
+    // 2) If any files were chosen, upload them
+    if (newScreenshots.length || newAttachments.length) {
+      const fd = new FormData();
+      newScreenshots.forEach(f => fd.append("screenshots", f));
+      newAttachments.forEach(f => fd.append("attachments", f));
+
+      await axios.post(
+        `/tickets/${selectedTicket.id}/files`,
+        fd,
+        { headers: { "Content-Type": "multipart/form-data" } }
+      );
+    }
+
+    // 3) Reset + UI stuff
+    setNewScreenshots([]);
+    setNewAttachments([]);
+    setShowEditModal(false);
+    reloadTickets();
+    setToastMessage("✅ Ticket updated!");
+    setShowToast(true);
+
+  } catch (err) {
+    console.error(err);
+    setToastMessage("❌ Failed to update ticket.");
+    setShowToast(true);
+  }
+};
+
+
+
 
 
 const removeScreenshot = (idxToRemove) => {
@@ -562,29 +616,26 @@ form.screenshots.forEach(file => URL.revokeObjectURL(file));
     </Form.Group>
 
     {/* CC – add one or more addresses */}
-<Form.Group className="mb-3">
-  <Form.Label>CC (one or more emails)</Form.Label>
-  <Typeahead
-    id="ccEmailInputSpecial"
-    multiple           // lets you add many
-    allowNew
-    options={[]}
-    newSelectionPrefix="Add: "
-    placeholder="Type address and hit Enter…"
-    selected={form.ccEmails}
-    onChange={sel =>
-      setForm(prev => ({
-        ...prev,
-        ccEmails: sel.map(item =>
-          typeof item === "string" ? item : item.label
-        )
-      }))
-    }
-  />
-</Form.Group>
-
-
-
+    <Form.Group className="mb-3">
+      <Form.Label>CC (one or more emails)</Form.Label>
+      <Typeahead
+        id="ccEmailInputSpecial"
+        multiple           // lets you add many
+        allowNew
+        options={[]}
+        newSelectionPrefix="Add: "
+        placeholder="Type address and hit Enter…"
+        selected={form.ccEmails}
+        onChange={sel =>
+          setForm(prev => ({
+            ...prev,
+            ccEmails: sel.map(item =>
+              typeof item === "string" ? item : item.label
+            )
+          }))
+        }
+      />
+    </Form.Group>
 
     {/* Location (always Corporate) */}
     <Form.Group className="mb-3">
@@ -649,6 +700,24 @@ form.screenshots.forEach(file => URL.revokeObjectURL(file));
         multiple
         onChange={handleFormChange}
         accept="image/*"
+        ref={fileInputRef}
+      />
+    </Form.Group>
+
+    {/* Attachments Section */}
+    <Form.Group className="mb-3">
+      <Form.Label>Attachments (any file types):</Form.Label>
+      <Form.Control
+        type="file"
+        name="attachments"
+        multiple
+        onChange={e => {
+          const files = Array.from(e.target.files);
+          setForm(prev => ({
+            ...prev,
+            attachments: [...prev.attachments, ...files]
+          }));
+        }}
         ref={fileInputRef}
       />
     </Form.Group>
@@ -952,174 +1021,204 @@ form.screenshots.forEach(file => URL.revokeObjectURL(file));
 </Modal>
 
 {/* View Ticket Modal */}
-<Modal
-  show={showViewModal}
-  onHide={() => setShowViewModal(false)}
-  fullscreen="sm-down"
-  centered
->
+<Modal show={showViewModal} onHide={() => setShowViewModal(false)} fullscreen="sm-down" centered>
   <Modal.Header closeButton>
-    <Modal.Title>View Ticket</Modal.Title>
+    <Modal.Title>🔍 Ticket Details</Modal.Title>
   </Modal.Header>
 
-  <Modal.Body>
+  <Modal.Body className="p-4">
     {selectedTicket && (
       <>
-        <p><strong>Subject:</strong> {selectedTicket.title}</p>
-        <p><strong>Description:</strong> {selectedTicket.description}</p>
-        <p>
-          <strong>Submitted by:</strong>{' '}
-          {selectedTicket.submitted_by_name || selectedTicket.submittedBy}
-        </p>
-        <p><strong>Status:</strong> {selectedTicket.status}</p>
-        <p><strong>Priority:</strong> {selectedTicket.priority}</p>
+        {/* Ticket Info Section */}
+        <div className="border rounded p-3 mb-4 bg-light shadow-sm">
+          <h5 className="fw-bold">📌 Ticket Information</h5>
+          <p><strong>📝 Subject:</strong> {selectedTicket.title}</p>
+          <p><strong>🗒️ Description:</strong> {selectedTicket.description}</p>
+          <p><strong>👤 Submitted by:</strong> {selectedTicket.submitted_by_name || selectedTicket.submittedBy}</p>
+          <p><strong>🚀 Status:</strong> <span className={`badge bg-${STATUS_COLORS[selectedTicket.status]}`}>{selectedTicket.status}</span></p>
+          <p><strong>🔥 Priority:</strong> <span className={`badge bg-${PRIORITY_COLORS[selectedTicket.priority]}`}>{selectedTicket.priority}</span></p>
+        </div>
 
-        {selectedTicket.cc_email && (
-          <p>
-            <strong>CC:</strong>{' '}
-            {Array.isArray(selectedTicket.cc_email)
-              ? selectedTicket.cc_email.join(', ')
-              : selectedTicket.cc_email}
-          </p>
-        )}
-
-        {/* Screenshots */}
+        {/* Screenshots Section */}
         {selectedTicket.screenshots?.length > 0 && (
-          <>
-            <p><strong>Screenshots:</strong></p>
-            <div className="d-flex flex-wrap gap-2 mb-3">
+          <div className="border rounded p-3 mb-4 bg-light shadow-sm">
+            <h5 className="fw-bold">🖼️ Screenshots</h5>
+            <div className="d-flex flex-wrap gap-2">
               {selectedTicket.screenshots.map((file, idx) => {
-                const url = file.startsWith('http')
-                  ? file
-                  : `${axios.defaults.baseURL}${file}`;
+                const url = file.startsWith('http') ? file : `${axios.defaults.baseURL}${file}`;
                 return (
                   <img
                     key={idx}
                     src={url}
                     alt={`screenshot-${idx}`}
-                    style={{
-                      maxWidth: '150px',
-                      height: 'auto',
-                      objectFit: 'contain',
-                      borderRadius: 4,
-                      cursor: 'pointer'
-                    }}
+                    className="border rounded shadow-sm"
+                    style={{ width: "120px", height: "auto", objectFit: "cover", cursor: "pointer", transition: "transform 0.3s" }}
                     onClick={() => window.open(url, '_blank')}
+                    onMouseOver={e => e.target.style.transform = "scale(1.1)"}
+                    onMouseOut={e => e.target.style.transform = "scale(1.0)"}
                   />
                 );
               })}
             </div>
-          </>
+          </div>
         )}
 
-        {/* Attachments */}
-        {selectedTicket.attachments?.length > 0 && (
-          <>
-            <p><strong>Attachments:</strong></p>
-            <ul style={{ paddingLeft: 20 }}>
-              {selectedTicket.attachments.map((file, idx) => {
-                const url = file.startsWith('http')
-                  ? file
-                  : `${axios.defaults.baseURL}${file}`;
-                const name = file.split('/').pop();
-                return (
-                  <li key={idx}>
-                    <a
-                      href={url}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                    >
-                      {name}
-                    </a>
-                  </li>
-                );
-              })}
-            </ul>
-          </>
-        )}
+        {/* Attachments Section */}
+{selectedTicket.attachments?.length > 0 && (
+  <div className="border rounded p-3 mb-4 bg-light shadow-sm">
+    <h5 className="fw-bold">📎 Attachments</h5>
+    <ul className="list-unstyled">
+      {selectedTicket.attachments.map((file, idx) => {
+        // prepend your API’s base URL when it’s a relative path
+        const url = file.startsWith("http")
+          ? file
+          : `${axios.defaults.baseURL}${file}`;
+
+        return (
+          <li key={idx} className="mb-2">
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-outline-primary btn-sm shadow-sm"
+            >
+              📂 {url.split("/").pop()}
+            </a>
+          </li>
+        );
+      })}
+    </ul>
+  </div>
+)}
+
       </>
     )}
   </Modal.Body>
 </Modal>
 
-      {/* Edit Modal */}
       <Modal show={showEditModal} onHide={() => setShowEditModal(false)} fullscreen="sm-down" centered>
-  <Modal.Header closeButton>
-    <Modal.Title>Edit Ticket</Modal.Title>
-  </Modal.Header>
-  <Modal.Body className="p-4">
-    
-    {/* Section: Current Files */}
-    {selectedTicket && (
-      <div className="border rounded p-3 mb-4 bg-light">
-        <h5 className="fw-bold">Current Files</h5>
-        
-        {/* Current Screenshots */}
-        {selectedTicket.screenshots?.length > 0 && (
-          <div className="mb-3">
-            <Form.Label className="text-muted">Screenshots:</Form.Label>
-            <div className="d-flex flex-wrap gap-2">
-              {selectedTicket.screenshots.map((file, idx) => (
-                <img key={idx} src={file} alt={`screenshot-${idx}`} className="border rounded" style={{ width: "120px", height: "auto", objectFit: "cover" }} />
-              ))}
-            </div>
-          </div>
-        )}
+  {selectedTicket && (
+    <Form onSubmit={handleEditSubmit}>
+      <Modal.Header closeButton>
+        <Modal.Title>Edit Ticket</Modal.Title>
+      </Modal.Header>
+      <Modal.Body className="p-4">
 
-        {/* Current Attachments */}
-        {selectedTicket.attachments?.length > 0 && (
-          <div className="mb-3">
-            <Form.Label className="text-muted">Attachments:</Form.Label>
-            <ul className="list-unstyled">
-              {selectedTicket.attachments.map((file, idx) => (
-                <li key={idx} className="mb-2">
-                  <a href={file} target="_blank" className="btn btn-outline-primary btn-sm">📎 {file.split("/").pop()}</a>
-                </li>
-              ))}
-            </ul>
-          </div>
-        )}
-      </div>
-    )}
+        {/* Section: Current Files */}
+        <div className="border rounded p-3 mb-4 bg-light">
+          <h5 className="fw-bold">Current Files</h5>
 
-    {/* Section: Upload New Files */}
-    <div className="border rounded p-3 mb-4 bg-light">
-      <h5 className="fw-bold">Upload New Files</h5>
-      
-      <Form.Group className="mb-3">
-        <Form.Label>Upload Screenshots:</Form.Label>
-        <Form.Control type="file" multiple accept="image/*" />
-      </Form.Group>
+          {/* Screenshots */}
+          {selectedTicket.screenshots.map((file, idx) => {
+  // 1.  If the string already starts with “http” keep it.
+  // 2.  Otherwise prefix it with your API base URL.
+  const url = file.startsWith("http")
+    ? file
+    : `${axios.defaults.baseURL}${file}`;
 
-      <Form.Group className="mb-3">
-        <Form.Label>Upload Attachments:</Form.Label>
-        <Form.Control type="file" multiple />
-      </Form.Group>
-    </div>
+  return (
+    <img
+      key={idx}
+      src={url}                      // 👈 use the fixed URL
+      alt={`screenshot-${idx}`}
+      className="border rounded"
+      style={{ width: 120, height: "auto", objectFit: "cover" }}
+    />
+  );
+})}
 
-    {/* Section: Edit Ticket Details */}
-    <div className="border rounded p-3 bg-light">
-      <h5 className="fw-bold">Edit Ticket Details</h5>
 
-      <Form.Group className="mb-3">
-        <Form.Label>Current Title:</Form.Label>
-        <p className="text-muted">{selectedTicket.title}</p>
-        <Form.Label>New Title:</Form.Label>
-        <Form.Control type="text" placeholder="Enter new title..." value={editForm.title} onChange={e => setEditForm({ ...editForm, title: e.target.value })} />
-      </Form.Group>
+          {/* Attachments */}
+{selectedTicket.attachments?.length > 0 && (
+  <div className="mb-3">
+    <Form.Label className="text-muted">Attachments:</Form.Label>
+    <ul className="list-unstyled">
+      {selectedTicket.attachments.map((file, idx) => {
+        // If it already starts with http keep it, otherwise prefix your API base
+        const url = file.startsWith("http")
+          ? file
+          : `${axios.defaults.baseURL}${file}`;
 
-      <Form.Group className="mb-3">
-        <Form.Label>Current Description:</Form.Label>
-        <p className="text-muted">{selectedTicket.description}</p>
-        <Form.Label>New Description:</Form.Label>
-        <Form.Control as="textarea" rows={3} placeholder="Enter new description..." value={editForm.description} onChange={e => setEditForm({ ...editForm, description: e.target.value })} />
-      </Form.Group>
-    </div>
-    
-    {/* Submit Button */}
-    <Button type="submit" variant="primary" className="mt-3 w-100">💾 Save Changes</Button>
-  </Modal.Body>
+        return (
+          <li key={idx} className="mb-2">
+            <a
+              href={url}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="btn btn-outline-primary btn-sm"
+            >
+              📎 {url.split("/").pop()}
+            </a>
+          </li>
+        );
+      })}
+    </ul>
+  </div>
+)}
+
+        </div>
+
+        {/* Upload New Files */}
+        <div className="border rounded p-3 mb-4 bg-light">
+          <h5 className="fw-bold">Upload New Files</h5>
+          <Form.Group className="mb-3">
+            <Form.Label>Upload Screenshots:</Form.Label>
+            <Form.Control
+              type="file"
+              multiple
+              accept="image/*"
+              onChange={e => setNewScreenshots(Array.from(e.target.files))}
+            />
+          </Form.Group>
+          <Form.Group className="mb-3">
+            <Form.Label>Upload Attachments:</Form.Label>
+            <Form.Control
+              type="file"
+              multiple
+              onChange={e => setNewAttachments(Array.from(e.target.files))}
+            />
+
+          </Form.Group>
+        </div>
+
+        {/* Edit Details */}
+        <div className="border rounded p-3 bg-light">
+          <h5 className="fw-bold">Edit Ticket Details</h5>
+          <Form.Group className="mb-3">
+            <Form.Label>Current Title:</Form.Label>
+            <p className="text-muted">{selectedTicket.title}</p>
+            <Form.Label>New Title:</Form.Label>
+            <Form.Control
+              type="text"
+              placeholder="Enter new title..."
+              value={editForm?.title || ''}
+              onChange={e => setEditForm({ ...editForm, title: e.target.value })}
+            />
+          </Form.Group>
+
+          <Form.Group className="mb-3">
+            <Form.Label>Current Description:</Form.Label>
+            <p className="text-muted">{selectedTicket.description}</p>
+            <Form.Label>New Description:</Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={3}
+              placeholder="Enter new description..."
+              value={editForm?.description || ''}
+              onChange={e => setEditForm({ ...editForm, description: e.target.value })}
+            />
+          </Form.Group>
+        </div>
+
+        <Button type="submit" variant="primary" className="mt-3 w-100">
+          💾 Save Changes
+        </Button>
+      </Modal.Body>
+    </Form>
+  )}
 </Modal>
+
+
 
      {/* Cancel-confirmation Modal */}
 <Modal

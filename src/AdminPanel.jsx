@@ -581,72 +581,55 @@ if (
 </tbody>
 </Table>
 
-       {/* View Ticket Modal */}
-<Modal show={showModal} onHide={() => setShowModal(false)}>
+       <Modal show={showModal} onHide={() => setShowModal(false)} fullscreen="sm-down" centered>
   <Modal.Header closeButton>
-    <Modal.Title>View Ticket</Modal.Title>
+    <Modal.Title>🔍 View Ticket</Modal.Title>
   </Modal.Header>
 
-  <Modal.Body>
-    {console.log("Selected Ticket Data:", selectedTicket)}
+  <Modal.Body className="p-4">
     {selectedTicket && (
-      <Card>
+      <Card className="shadow-sm border rounded">
         <Card.Body>
           {/* Title + Status Badge */}
           <Card.Title className="d-flex justify-content-between align-items-center">
-            {selectedTicket.title}
-            <Badge bg={
-              selectedTicket.status === 'Open' ? 'primary'
-              : selectedTicket.status === 'In Progress' ? 'warning'
-              : 'success'
-            }>
+            <span className="fw-bold">{selectedTicket.title}</span>
+            <Badge bg={selectedTicket.status === 'Open' ? 'primary' 
+              : selectedTicket.status === 'In Progress' ? 'warning' 
+              : 'success'}
+              className="fs-6">
               {selectedTicket.status}
             </Badge>
           </Card.Title>
 
           {/* Key Details */}
-<ListGroup variant="flush" className="mt-3">
-  <ListGroup.Item>
-    <strong>Description:</strong> {selectedTicket.description}
-  </ListGroup.Item>
+          <ListGroup variant="flush" className="mt-3">
+            <ListGroup.Item><strong>📝 Description:</strong> {selectedTicket.description}</ListGroup.Item>
+            {selectedTicket.response && (
+              <ListGroup.Item><strong>💬 Response:</strong> {selectedTicket.response}</ListGroup.Item>
+            )}
+            <ListGroup.Item><strong>🔥 Priority:</strong> {selectedTicket.priority}</ListGroup.Item>
+            <ListGroup.Item><strong>👤 Submitted By:</strong> {selectedTicket.submitted_by}</ListGroup.Item>
+            <ListGroup.Item><strong>👨‍💼 Assigned To:</strong> {selectedTicket.assignedTo || 'Unassigned'}</ListGroup.Item>
+            <ListGroup.Item><strong>⏳ Created At:</strong> {new Date(selectedTicket.created_at).toLocaleString()}</ListGroup.Item>
+          </ListGroup>
 
-  {selectedTicket.response && (
-    <ListGroup.Item>
-      <strong>Response:</strong> {selectedTicket.response}
-    </ListGroup.Item>
-  )}
-
-  <ListGroup.Item>
-    <strong>Priority:</strong> {selectedTicket.priority}
-  </ListGroup.Item>
-  <ListGroup.Item>
-    <strong>Submitted By:</strong> {selectedTicket.submitted_by}
-  </ListGroup.Item>
-  <ListGroup.Item>
-    <strong>Assigned To:</strong> {selectedTicket.assignedTo || 'Unassigned'}
-  </ListGroup.Item>
-  <ListGroup.Item>
-    <strong>Created At:</strong> {new Date(selectedTicket.created_at).toLocaleString()}
-  </ListGroup.Item>
-</ListGroup>
-
-
-          {/* Screenshots */}
+          {/* Screenshots Section */}
           {selectedTicket.screenshots?.length > 0 && (
-            <div className="mt-4">
-              <strong>Screenshots:</strong>
+            <div className="mt-4 border rounded p-3 bg-light shadow-sm">
+              <h5 className="fw-bold">🖼️ Screenshots</h5>
               <div className="d-flex flex-wrap gap-2 mt-2">
                 {selectedTicket.screenshots.map((src, idx) => {
-                  const url = src.startsWith('http')
-                    ? src
-                    : `${axios.defaults.baseURL}${src}`;
+                  const url = src.startsWith('http') ? src : `${axios.defaults.baseURL}${src}`;
                   return (
                     <Image
                       key={idx}
                       src={url}
                       thumbnail
-                      style={{ maxWidth: '150px', cursor: 'pointer' }}
+                      className="border rounded shadow-sm"
+                      style={{ maxWidth: '120px', cursor: 'pointer', transition: 'transform 0.3s' }}
                       onClick={() => window.open(url, '_blank')}
+                      onMouseOver={e => e.target.style.transform = "scale(1.1)"}
+                      onMouseOut={e => e.target.style.transform = "scale(1.0)"}
                     />
                   );
                 })}
@@ -654,10 +637,10 @@ if (
             </div>
           )}
 
-          {/* Attachments — Place it RIGHT BELOW Screenshots */}
-          {selectedTicket?.attachments?.length > 0 && (
-            <div className="mt-4">
-              <strong>Attachments:</strong>
+          {/* Attachments Section */}
+          {selectedTicket.attachments?.length > 0 && (
+            <div className="mt-4 border rounded p-3 bg-light shadow-sm">
+              <h5 className="fw-bold">📎 Attachments</h5>
               <ListGroup>
                 {selectedTicket.attachments.map((file, idx) => (
                   <ListGroup.Item key={idx}>
@@ -665,16 +648,16 @@ if (
                       href={encodeURI(`${axios.defaults.baseURL}${file}`)}
                       target="_blank"
                       rel="noopener noreferrer"
+                      className="btn btn-outline-primary btn-sm shadow-sm"
                     >
-                      {file.split('/').pop()} 📎
+                      📂 {file.split('/').pop()}
                     </a>
                   </ListGroup.Item>
                 ))}
               </ListGroup>
             </div>
           )}
-
-        </Card.Body> {/* Attachments are now inside Card.Body */}
+        </Card.Body>
       </Card>
     )}
   </Modal.Body>
